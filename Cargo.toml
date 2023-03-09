@@ -10,7 +10,7 @@ codegen-units = 1
 panic = "abort"
 
 [[bin]]
-name = "create_command"
+name = "cli"
 test = false
 bench = false
 

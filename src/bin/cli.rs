@@ -78,9 +78,16 @@ async fn post_create_guild_command(client: &Client, guild_id: &str) -> Result<()
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    /// Number of times to greet
-    #[arg(short, long)]
-    guild_id: Option<String>,
+    #[command(subcommand)]
+    action: Action,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Action {
+    CreateCommand {
+        #[arg(short, long)]
+        guild_id: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -98,12 +105,16 @@ pub async fn main() -> Result<(), Error> {
         .init();
 
     let client = Client::default();
-    if let Some(guild_id) = args.guild_id {
-        info!("create guild command: {guild_id}");
-        post_create_guild_command(&client, &guild_id).await?;
-    } else {
-        info!("create application command");
-        post_create_application_command(&client).await?;
+    match args.action {
+        Action::CreateCommand { guild_id } => {
+            if let Some(guild_id) = guild_id {
+                info!("create guild command: {guild_id}");
+                post_create_guild_command(&client, &guild_id).await?;
+            } else {
+                info!("create application command");
+                post_create_application_command(&client).await?;
+            }
+        }
     }
     Ok(())
 }
