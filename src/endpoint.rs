@@ -1,6 +1,6 @@
 use tracing::instrument;
 
-use crate::constants::DISCORD_BASE_URL;
+use crate::constants::{CHATGPT_BASE_URL, DISCORD_BASE_URL};
 use crate::env::DISCORD_APPLICATION_ID;
 
 /**
@@ -31,4 +31,12 @@ pub fn get_register_guild_command_endpoint(guild_id: &str) -> String {
 #[instrument(ret)]
 pub fn get_channel_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}",)
+}
+
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel
+ */
+#[instrument(ret)]
+pub fn get_chatgpt_endpoint() -> String {
+    format!("{CHATGPT_BASE_URL}/chat/completions",)
 }

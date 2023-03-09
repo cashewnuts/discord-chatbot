@@ -2,8 +2,11 @@ use clap::Parser;
 
 use discord_chatbot::{
     error::Error,
-    services::discord_service::{
-        get_get_channel, post_create_application_command, post_create_guild_command,
+    services::{
+        chatgpt_service::post_get_channel,
+        discord_service::{
+            get_get_channel, post_create_application_command, post_create_guild_command,
+        },
     },
 };
 use tracing::info;
@@ -25,6 +28,10 @@ enum Action {
     GetChannel {
         #[arg(short, long)]
         channel_id: String,
+    },
+    Chat {
+        #[arg(short, long)]
+        text: String,
     },
 }
 
@@ -58,6 +65,11 @@ pub async fn main() -> Result<(), Error> {
         Action::GetChannel { channel_id } => {
             info!("get channel: {channel_id}");
             let response = get_get_channel(&client, &channel_id).await?;
+            println!("{:?}", response.text().await?);
+        }
+        Action::Chat { text } => {
+            info!("chat: {text}");
+            let response = post_get_channel(&client, &text).await?;
             println!("{:?}", response.text().await?);
         }
     }
