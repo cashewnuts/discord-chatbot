@@ -1,48 +1,16 @@
 use std::str::{from_utf8, FromStr};
 
+use discord_chatbot::models::{
+    request::InteractionRequest,
+    response::{InteractionMessage, InteractionResponse},
+};
 use ed25519_dalek::{PublicKey, Signature};
 use env::DISCORD_BOT_PUBLIC_KEY;
 use lambda_http::{http::Method, run, service_fn, Body, Error, Request, RequestExt, Response};
-use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 
 pub mod env;
-
-#[derive(Serialize, Deserialize)]
-struct DiscordUser {
-    id: String,
-    username: String,
-    discriminator: String,
-}
-
-#[derive(Serialize, Deserialize)]
-struct DiscordGuildMember {
-    user: Option<DiscordUser>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct InteractionRequest {
-    id: String,
-    token: String,
-    #[serde(rename = "type")]
-    type_: u32,
-    user: Option<DiscordUser>,
-    member: Option<Vec<DiscordGuildMember>>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct InteractionResponse<T> {
-    #[serde(rename = "type")]
-    type_: u32,
-    #[serde(skip)]
-    data: Option<T>,
-}
-
-impl<T> InteractionResponse<T> {
-    pub fn new(type_: u32, data: Option<T>) -> Self {
-        Self { type_, data }
-    }
-}
+pub mod models;
 
 #[instrument(ret, err)]
 async fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
@@ -52,14 +20,34 @@ async fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
 #[instrument(ret, err)]
 async fn post_interactions_handler(req: &Request) -> Result<Response<Body>, Error> {
     info!("{DISCORD_BOT_PUBLIC_KEY:?}");
-    let request: InteractionRequest = match req.payload() {
-        Ok(Some(request)) => request,
-        Ok(_) => return Err(Error::from("empty error".to_string())),
-        Err(e) => return Err(Error::from(e)),
+    let request: InteractionRequest = if let Ok(Some(req)) = req.payload() {
+        req
+    } else {
+        let resp = Response::builder()
+            .status(400)
+            .header("content-type", "text/html")
+            .body("invalid request signature".into())
+            .map_err(Box::new)?;
+        return Ok(resp);
     };
+    info!("{request:?}");
     match request.type_ {
         1u32 => {
             let response = InteractionResponse::<String>::new(1, None);
+            Ok(Response::builder()
+                .status(200)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&response)?))
+                .unwrap())
+        }
+        2u32 => {
+            let response = InteractionResponse::new(
+                4,
+                Some(InteractionMessage {
+                    tts: None,
+                    content: Some("hello world!".to_string()),
+                }),
+            );
             Ok(Response::builder()
                 .status(200)
                 .header("content-type", "application/json")
@@ -111,7 +99,6 @@ async fn function_handler(req: Request) -> Result<Response<Body>, Error> {
     match (req.method(), req.uri().path()) {
         // Serve some instructions at /
         (&Method::GET, "/") => get_response(&req).await,
-        (&Method::POST, "/interactions") => post_interactions_handler(&req).await,
         (&Method::POST, "/api/interactions") => post_interactions_handler(&req).await,
         _ => {
             error!("{req:?}");
