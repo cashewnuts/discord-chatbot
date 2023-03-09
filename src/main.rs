@@ -10,6 +10,7 @@ use lambda_http::{http::Method, run, service_fn, Body, Error, Request, RequestEx
 use tracing::{error, info, instrument};
 
 pub mod env;
+pub mod error;
 pub mod models;
 
 #[instrument(ret, err)]

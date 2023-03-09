@@ -1,89 +1,12 @@
-use std::vec;
-
 use clap::Parser;
 
-use discord_chatbot::endpoint::{
-    get_channel_endpoint, get_register_application_command_endpoint,
-    get_register_guild_command_endpoint,
+use discord_chatbot::{
+    error::Error,
+    services::discord_service::{
+        get_get_channel, post_create_application_command, post_create_guild_command,
+    },
 };
-use discord_chatbot::env::DISCORD_BOT_TOKEN;
-use discord_chatbot::models::application_command::{ApplicationCommand, ApplicationCommandOption};
-use tracing::{info, instrument};
-
-type Error = Box<dyn std::error::Error + Send + Sync>;
-
-fn generate_chat_command() -> ApplicationCommand {
-    ApplicationCommand {
-        name: "chat".to_string(),
-        type_: 1,
-        description: "ChatGPT command".to_string(),
-        options: Some(vec![ApplicationCommandOption {
-            name: "text".to_string(),
-            type_: 3,
-            description: "question text".to_string(),
-            required: Some(true),
-            min_length: Some(5u32),
-        }]),
-    }
-}
-
-#[instrument(skip(client), ret, err)]
-async fn post_create_application_command(client: &reqwest::Client) -> Result<(), Error> {
-    let command = generate_chat_command();
-    info!("{command:?}");
-
-    let resp = client
-        .post(get_register_application_command_endpoint())
-        .header(
-            "Authorization",
-            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
-        )
-        .json(&command)
-        .send()
-        .await?
-        .text()
-        .await?;
-    info!("{:?}", resp);
-    Ok(())
-}
-
-#[instrument(skip(client), ret, err)]
-async fn post_create_guild_command(client: &reqwest::Client, guild_id: &str) -> Result<(), Error> {
-    let command = generate_chat_command();
-    info!("{command:?}");
-
-    let resp = client
-        .post(get_register_guild_command_endpoint(guild_id))
-        .header(
-            "Authorization",
-            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
-        )
-        .json(&command)
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    info!("{:?}", resp);
-    Ok(())
-}
-
-#[instrument(skip(client), ret, err)]
-async fn get_get_channel(client: &reqwest::Client, channel_id: &str) -> Result<(), Error> {
-    let resp = client
-        .get(get_channel_endpoint(channel_id))
-        .header(
-            "Authorization",
-            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
-        )
-        .send()
-        .await?
-        .text()
-        .await?;
-
-    info!("{:?}", resp);
-    Ok(())
-}
+use tracing::info;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -124,15 +47,18 @@ pub async fn main() -> Result<(), Error> {
         Action::CreateCommand { guild_id } => {
             if let Some(guild_id) = guild_id {
                 info!("create guild command: {guild_id}");
-                post_create_guild_command(&client, &guild_id).await?;
+                let response = post_create_guild_command(&client, &guild_id).await?;
+                println!("{:?}", response.text().await?);
             } else {
                 info!("create application command");
-                post_create_application_command(&client).await?;
+                let response = post_create_application_command(&client).await?;
+                println!("{:?}", response.text().await?);
             }
         }
         Action::GetChannel { channel_id } => {
             info!("get channel: {channel_id}");
-            get_get_channel(&client, &channel_id).await?;
+            let response = get_get_channel(&client, &channel_id).await?;
+            println!("{:?}", response.text().await?);
         }
     }
     Ok(())
