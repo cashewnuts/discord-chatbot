@@ -1,5 +1,5 @@
 [package]
-name = "discord-chatbot"
+name = "discord_chatbot"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,6 +8,11 @@ opt-level = 'z' # Optimize for size
 lto = true
 codegen-units = 1
 panic = "abort"
+
+[[bin]]
+name = "create_command"
+test = false
+bench = false
 
 # Starting in Rust 1.62 you can use `cargo add` to add dependencies 
 # to your project.

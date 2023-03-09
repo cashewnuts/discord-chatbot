@@ -1,12 +1,12 @@
 use std::str::{from_utf8, FromStr};
 
 use ed25519_dalek::{PublicKey, Signature};
+use env::DISCORD_BOT_PUBLIC_KEY;
 use lambda_http::{http::Method, run, service_fn, Body, Error, Request, RequestExt, Response};
 use serde::{Deserialize, Serialize};
 use tracing::{error, info, instrument};
 
-const DISCORD_BOT_TOKEN: Option<&'static str> = option_env!("DISCORD_BOT_TOKEN");
-const DISCORD_BOT_PUBLIC_KEY: Option<&'static str> = option_env!("DISCORD_BOT_PUBLIC_KEY");
+pub mod env;
 
 #[derive(Serialize, Deserialize)]
 struct DiscordUser {
