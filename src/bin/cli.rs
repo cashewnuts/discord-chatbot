@@ -1,74 +1,85 @@
-use awc::Client;
+use std::vec;
+
 use clap::Parser;
-use discord_chatbot::constants::DISCORD_BASE_URL;
-use discord_chatbot::env::{DISCORD_APPLICATION_ID, DISCORD_BOT_TOKEN};
-use discord_chatbot::models::application_command::ApplicationCommand;
+
+use discord_chatbot::endpoint::{
+    get_channel_endpoint, get_register_application_command_endpoint,
+    get_register_guild_command_endpoint,
+};
+use discord_chatbot::env::DISCORD_BOT_TOKEN;
+use discord_chatbot::models::application_command::{ApplicationCommand, ApplicationCommandOption};
 use tracing::{info, instrument};
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 
-/**
- * https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
- */
-#[instrument(ret)]
-fn get_register_application_command_endpoint() -> String {
-    format!(
-        "{DISCORD_BASE_URL}/applications/{}/commands",
-        DISCORD_APPLICATION_ID.unwrap()
-    )
-}
-
-/**
- * https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
- */
-#[instrument(ret)]
-fn get_register_guild_command_endpoint(guild_id: &str) -> String {
-    format!(
-        "{DISCORD_BASE_URL}/applications/{}/guilds/{guild_id}/commands",
-        DISCORD_APPLICATION_ID.unwrap()
-    )
-}
-
-#[instrument(skip(client), ret, err)]
-async fn post_create_application_command(client: &Client) -> Result<(), Error> {
-    let command = ApplicationCommand {
+fn generate_chat_command() -> ApplicationCommand {
+    ApplicationCommand {
         name: "chat".to_string(),
         type_: 1,
         description: "ChatGPT command".to_string(),
-    };
+        options: Some(vec![ApplicationCommandOption {
+            name: "text".to_string(),
+            type_: 3,
+            description: "question text".to_string(),
+            required: Some(true),
+            min_length: Some(5u32),
+        }]),
+    }
+}
+
+#[instrument(skip(client), ret, err)]
+async fn post_create_application_command(client: &reqwest::Client) -> Result<(), Error> {
+    let command = generate_chat_command();
     info!("{command:?}");
 
     let resp = client
         .post(get_register_application_command_endpoint())
-        .insert_header((
+        .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
-        ))
-        .send_json(&command)
-        .await
-        .map_err(|_e| Error::from("Error occuerred".to_string()))?;
+        )
+        .json(&command)
+        .send()
+        .await?
+        .text()
+        .await?;
     info!("{:?}", resp);
     Ok(())
 }
 
 #[instrument(skip(client), ret, err)]
-async fn post_create_guild_command(client: &Client, guild_id: &str) -> Result<(), Error> {
-    let command = ApplicationCommand {
-        name: "chat".to_string(),
-        type_: 1,
-        description: "ChatGPT command".to_string(),
-    };
+async fn post_create_guild_command(client: &reqwest::Client, guild_id: &str) -> Result<(), Error> {
+    let command = generate_chat_command();
     info!("{command:?}");
 
     let resp = client
         .post(get_register_guild_command_endpoint(guild_id))
-        .insert_header((
+        .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
-        ))
-        .send_json(&command)
-        .await
-        .map_err(|_e| Error::from("Error occuerred".to_string()))?;
+        )
+        .json(&command)
+        .send()
+        .await?
+        .text()
+        .await?;
+
+    info!("{:?}", resp);
+    Ok(())
+}
+
+#[instrument(skip(client), ret, err)]
+async fn get_get_channel(client: &reqwest::Client, channel_id: &str) -> Result<(), Error> {
+    let resp = client
+        .get(get_channel_endpoint(channel_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .send()
+        .await?
+        .text()
+        .await?;
 
     info!("{:?}", resp);
     Ok(())
@@ -88,6 +99,10 @@ enum Action {
         #[arg(short, long)]
         guild_id: Option<String>,
     },
+    GetChannel {
+        #[arg(short, long)]
+        channel_id: String,
+    },
 }
 
 #[tokio::main]
@@ -104,7 +119,7 @@ pub async fn main() -> Result<(), Error> {
         .with_line_number(true)
         .init();
 
-    let client = Client::default();
+    let client = reqwest::Client::new();
     match args.action {
         Action::CreateCommand { guild_id } => {
             if let Some(guild_id) = guild_id {
@@ -114,6 +129,10 @@ pub async fn main() -> Result<(), Error> {
                 info!("create application command");
                 post_create_application_command(&client).await?;
             }
+        }
+        Action::GetChannel { channel_id } => {
+            info!("get channel: {channel_id}");
+            get_get_channel(&client, &channel_id).await?;
         }
     }
     Ok(())
