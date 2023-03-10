@@ -5,10 +5,9 @@ use tracing::{info, instrument};
 
 use crate::{
     endpoint::{
-        get_application_commands_endpoint, get_channel_endpoint, get_create_message_endpoint,
-        get_followup_endpoint, get_guild_commands_endpoint,
-        get_register_application_command_endpoint, get_register_guild_command_endpoint,
-        get_start_thread_endpoint,
+        application_command_item_endpoint, application_commands_endpoint, channel_item_endpoint,
+        get_create_message_endpoint, get_followup_endpoint, get_start_thread_endpoint,
+        guild_command_item_endpoint, guild_commands_endpoint,
     },
     env::DISCORD_BOT_TOKEN,
     error::Error,
@@ -39,6 +38,9 @@ pub fn generate_message_command() -> ApplicationCommand {
     }
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn post_create_application_chat_command(
     client: &reqwest::Client,
@@ -47,7 +49,7 @@ pub async fn post_create_application_chat_command(
     info!("{command:?}");
 
     let resp = client
-        .post(get_register_application_command_endpoint())
+        .post(application_commands_endpoint())
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -59,6 +61,9 @@ pub async fn post_create_application_chat_command(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn post_create_application_message_command(
     client: &reqwest::Client,
@@ -67,7 +72,7 @@ pub async fn post_create_application_message_command(
     info!("{command:?}");
 
     let resp = client
-        .post(get_register_application_command_endpoint())
+        .post(application_commands_endpoint())
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -79,6 +84,9 @@ pub async fn post_create_application_message_command(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn post_create_guild_chat_command(
     client: &reqwest::Client,
@@ -88,7 +96,7 @@ pub async fn post_create_guild_chat_command(
     info!("{command:?}");
 
     let resp = client
-        .post(get_register_guild_command_endpoint(guild_id))
+        .post(guild_commands_endpoint(guild_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -100,6 +108,9 @@ pub async fn post_create_guild_chat_command(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn post_create_guild_message_command(
     client: &reqwest::Client,
@@ -109,7 +120,7 @@ pub async fn post_create_guild_message_command(
     info!("{command:?}");
 
     let resp = client
-        .post(get_register_guild_command_endpoint(guild_id))
+        .post(guild_commands_endpoint(guild_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -121,10 +132,13 @@ pub async fn post_create_guild_message_command(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn get_application_commands(client: &reqwest::Client) -> Result<Response, Error> {
     let resp = client
-        .get(get_application_commands_endpoint())
+        .get(application_commands_endpoint())
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -135,13 +149,16 @@ pub async fn get_application_commands(client: &reqwest::Client) -> Result<Respon
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn get_guild_commands(
     client: &reqwest::Client,
     guild_id: &str,
 ) -> Result<Response, Error> {
     let resp = client
-        .get(get_guild_commands_endpoint(guild_id))
+        .get(guild_commands_endpoint(guild_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
@@ -152,13 +169,57 @@ pub async fn get_guild_commands(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#delete-global-application-command
+ */
+#[instrument(skip(client), ret, err)]
+pub async fn delete_guild_command(
+    client: &reqwest::Client,
+    guild_id: &str,
+    command_id: &str,
+) -> Result<Response, Error> {
+    let resp = client
+        .delete(guild_command_item_endpoint(guild_id, command_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#delete-global-application-command
+ */
+#[instrument(skip(client), ret, err)]
+pub async fn delete_application_command(
+    client: &reqwest::Client,
+    command_id: &str,
+) -> Result<Response, Error> {
+    let resp = client
+        .delete(application_command_item_endpoint(command_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel
+ */
 #[instrument(skip(client), ret, err)]
 pub async fn get_get_channel(
     client: &reqwest::Client,
     channel_id: &str,
 ) -> Result<Response, Error> {
     let resp = client
-        .get(get_channel_endpoint(channel_id))
+        .get(channel_item_endpoint(channel_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),

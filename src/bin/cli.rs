@@ -6,10 +6,10 @@ use discord_chatbot::{
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
-            get_application_commands, get_get_channel, get_guild_commands,
-            post_create_application_chat_command, post_create_application_message_command,
-            post_create_guild_chat_command, post_create_guild_message_command,
-            post_followup_message,
+            delete_application_command, delete_guild_command, get_application_commands,
+            get_get_channel, get_guild_commands, post_create_application_chat_command,
+            post_create_application_message_command, post_create_guild_chat_command,
+            post_create_guild_message_command, post_followup_message,
         },
     },
 };
@@ -98,11 +98,17 @@ pub async fn main() -> Result<(), Error> {
             }
         },
         Action::DeleteCommand {
-            command_id: id,
+            command_id,
             guild_id,
         } => match guild_id {
-            Some(g_id) => todo!(),
-            None => todo!(),
+            Some(g_id) => {
+                let response = delete_guild_command(&client, &g_id, &command_id).await?;
+                println!("guild command deleted: {:#?}", response.text().await?);
+            }
+            None => {
+                let response = delete_application_command(&client, &command_id).await?;
+                println!("application command deleted: {:#?}", response.text().await?);
+            }
         },
         Action::GetChannel { channel_id } => {
             info!("get channel: {channel_id}");

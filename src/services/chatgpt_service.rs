@@ -2,12 +2,19 @@ use reqwest::Response;
 use serde_json::json;
 use tracing::instrument;
 
-use crate::{endpoint::get_chatgpt_endpoint, env::CHATGPT_API_KEY, error::Error};
+use crate::{endpoint::chatgpt_completions_endpoint, env::CHATGPT_API_KEY, error::Error};
 
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel
+ */
 #[instrument(skip(client), ret, err)]
-pub async fn post_chat_completions(client: &reqwest::Client, system_text: &str, text: &str) -> Result<Response, Error> {
+pub async fn post_chat_completions(
+    client: &reqwest::Client,
+    system_text: &str,
+    text: &str,
+) -> Result<Response, Error> {
     let resp = client
-        .post(get_chatgpt_endpoint())
+        .post(chatgpt_completions_endpoint())
         .header(
             "Authorization",
             format!("Bearer {}", CHATGPT_API_KEY.unwrap()),

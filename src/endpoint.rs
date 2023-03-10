@@ -3,63 +3,45 @@ use tracing::instrument;
 use crate::constants::{CHATGPT_BASE_URL, DISCORD_BASE_URL};
 use crate::env::DISCORD_APPLICATION_ID;
 
-/**
- * https://discord.com/developers/docs/interactions/application-commands#create-global-application-command
- */
 #[instrument(ret)]
-pub fn get_register_application_command_endpoint() -> String {
+pub fn application_commands_endpoint() -> String {
     format!(
         "{DISCORD_BASE_URL}/applications/{}/commands",
         DISCORD_APPLICATION_ID.unwrap()
     )
 }
 
-/**
- * https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
- */
 #[instrument(ret)]
-pub fn get_application_commands_endpoint() -> String {
+pub fn application_command_item_endpoint(command_id: &str) -> String {
     format!(
-        "{DISCORD_BASE_URL}/applications/{}/commands",
+        "{DISCORD_BASE_URL}/applications/{}/commands/{command_id}",
         DISCORD_APPLICATION_ID.unwrap()
     )
 }
 
-/**
- * https://discord.com/developers/docs/interactions/application-commands#create-guild-application-command
- */
 #[instrument(ret)]
-pub fn get_register_guild_command_endpoint(guild_id: &str) -> String {
+pub fn guild_commands_endpoint(guild_id: &str) -> String {
     format!(
         "{DISCORD_BASE_URL}/applications/{}/guilds/{guild_id}/commands",
         DISCORD_APPLICATION_ID.unwrap()
     )
 }
 
-/**
- * https://discord.com/developers/docs/interactions/application-commands#get-guild-application-commands
- */
 #[instrument(ret)]
-pub fn get_guild_commands_endpoint(guild_id: &str) -> String {
+pub fn guild_command_item_endpoint(guild_id: &str, command_id: &str) -> String {
     format!(
-        "{DISCORD_BASE_URL}/applications/{}/guilds/{guild_id}/commands",
+        "{DISCORD_BASE_URL}/applications/{}/guilds/{guild_id}/commands/{command_id}",
         DISCORD_APPLICATION_ID.unwrap()
     )
 }
 
-/**
- * https://discord.com/developers/docs/resources/channel#get-channel
- */
 #[instrument(ret)]
-pub fn get_channel_endpoint(channel_id: &str) -> String {
+pub fn channel_item_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}",)
 }
 
-/**
- * https://discord.com/developers/docs/resources/channel#get-channel
- */
 #[instrument(ret)]
-pub fn get_chatgpt_endpoint() -> String {
+pub fn chatgpt_completions_endpoint() -> String {
     format!("{CHATGPT_BASE_URL}/chat/completions",)
 }
 
