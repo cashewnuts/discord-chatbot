@@ -2,10 +2,12 @@ use clap::Parser;
 
 use discord_chatbot::{
     error::Error,
+    models::webhook_request::WebhookRequest,
     services::{
-        chatgpt_service::post_get_channel,
+        chatgpt_service::post_chat_completions,
         discord_service::{
             get_get_channel, post_create_application_command, post_create_guild_command,
+            post_followup_message,
         },
     },
 };
@@ -28,6 +30,10 @@ enum Action {
     GetChannel {
         #[arg(short, long)]
         channel_id: String,
+    },
+    FollowUp {
+        #[arg(short, long)]
+        token: String,
     },
     Chat {
         #[arg(short, long)]
@@ -67,9 +73,22 @@ pub async fn main() -> Result<(), Error> {
             let response = get_get_channel(&client, &channel_id).await?;
             println!("{:?}", response.text().await?);
         }
+        Action::FollowUp { token } => {
+            info!("follow up: {token}");
+            let response = post_followup_message(
+                &client,
+                &token,
+                &WebhookRequest {
+                    content: "Follow up!".to_string(),
+                },
+            )
+            .await?;
+            println!("{:?}", response.text().await?);
+        }
         Action::Chat { text } => {
             info!("chat: {text}");
-            let response = post_get_channel(&client, &text).await?;
+            let response =
+                post_chat_completions(&client, "You are a helpful assistant.", &text).await?;
             println!("{:?}", response.text().await?);
         }
     }
