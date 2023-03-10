@@ -6,8 +6,9 @@ use discord_chatbot::{
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
-            get_get_channel, post_create_application_command, post_create_guild_command,
-            post_followup_message,
+            get_get_channel, post_create_application_chat_command,
+            post_create_application_message_command, post_create_guild_chat_command,
+            post_create_guild_message_command, post_followup_message,
         },
     },
 };
@@ -23,7 +24,7 @@ struct Args {
 
 #[derive(clap::Subcommand, Debug)]
 enum Action {
-    CreateCommand {
+    CreateCommands {
         #[arg(short, long)]
         guild_id: Option<String>,
     },
@@ -57,15 +58,22 @@ pub async fn main() -> Result<(), Error> {
 
     let client = reqwest::Client::new();
     match args.action {
-        Action::CreateCommand { guild_id } => {
+        Action::CreateCommands { guild_id } => {
             if let Some(guild_id) = guild_id {
                 info!("create guild command: {guild_id}");
-                let response = post_create_guild_command(&client, &guild_id).await?;
-                println!("{:?}", response.text().await?);
+                let response = post_create_guild_chat_command(&client, &guild_id).await?;
+                println!("(GUILD)chat command created: {:?}", response.text().await?);
+                let response = post_create_guild_message_command(&client, &guild_id).await?;
+                println!(
+                    "(GUILD)message command created: {:?}",
+                    response.text().await?
+                );
             } else {
                 info!("create application command");
-                let response = post_create_application_command(&client).await?;
-                println!("{:?}", response.text().await?);
+                let response = post_create_application_chat_command(&client).await?;
+                println!("chat command created: {:?}", response.text().await?);
+                let response = post_create_application_message_command(&client).await?;
+                println!("message command created: {:?}", response.text().await?);
             }
         }
         Action::GetChannel { channel_id } => {

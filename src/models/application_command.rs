@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
 
+/**
+ * https://discord.com/developers/docs/interactions/application-commands#application-command-object
+ */
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApplicationCommand {
     pub name: String,
     #[serde(rename = "type")]
     pub type_: u32,
-    pub description: String,
+    pub description: Option<String>,
     pub options: Option<Vec<ApplicationCommandOption>>,
 }
 
