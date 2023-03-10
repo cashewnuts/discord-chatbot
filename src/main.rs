@@ -20,7 +20,7 @@ pub mod error;
 pub mod models;
 
 #[instrument(ret, err)]
-async fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
+fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
     Ok(Response::new(Body::from("Hello world!")))
 }
 
@@ -135,7 +135,7 @@ async fn function_handler(req: Request) -> Result<Response<Body>, Error> {
     let client = reqwest::Client::new();
     match (req.method(), req.uri().path()) {
         // Serve some instructions at /
-        (&Method::GET, "/") => get_response(&req).await,
+        (&Method::GET, "/") => get_response(&req),
         (&Method::POST, "/api/interactions") => post_interactions_handler(&client, &req).await,
         _ => {
             error!("{req:?}");
