@@ -6,7 +6,7 @@ watch:
 
 .PHONY: build
 build:
-	cargo lambda build --release --arm64
+	cargo lambda build --release --arm64 --bin discord_chatbot
 
 .PHONY: deploy
 deploy:
