@@ -92,7 +92,6 @@ Resources:
       BuildMethod: makefile
 
 Outputs:
-  WebEndpoint:
+  FunctionUrl:
     Description: 'Function URL'
-    Value: !GetAtt DiscordWebhookReceiverFunction.FunctionUrl
-
+    Value: "Not working due to aws's bug. Maybe" # !GetAtt DiscordWebhookReceiverFunction.FunctionUrl

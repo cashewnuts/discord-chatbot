@@ -6,14 +6,14 @@ watch:
 
 .PHONY: build
 build:
-	sam build
+	sam build --cached
 
 .PHONY: deploy
 deploy:
 	sam deploy --stack-name DiscordChatGPTBot --resolve-s3 --capabilities CAPABILITY_IAM
 
-.PHONY: clean-deploy
-clean-deploy: build deploy
+.PHONY: build-deploy
+build-deploy: build deploy
 
 
 .PHONY: build-discord_chatbot
