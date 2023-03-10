@@ -6,9 +6,10 @@ use discord_chatbot::{
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
-            get_get_channel, post_create_application_chat_command,
-            post_create_application_message_command, post_create_guild_chat_command,
-            post_create_guild_message_command, post_followup_message,
+            get_application_commands, get_get_channel, get_guild_commands,
+            post_create_application_chat_command, post_create_application_message_command,
+            post_create_guild_chat_command, post_create_guild_message_command,
+            post_followup_message,
         },
     },
 };
@@ -25,6 +26,16 @@ struct Args {
 #[derive(clap::Subcommand, Debug)]
 enum Action {
     CreateCommands {
+        #[arg(short, long)]
+        guild_id: Option<String>,
+    },
+    GetCommands {
+        #[arg(short, long)]
+        guild_id: Option<String>,
+    },
+    DeleteCommand {
+        #[arg(short, long)]
+        command_id: String,
         #[arg(short, long)]
         guild_id: Option<String>,
     },
@@ -76,6 +87,23 @@ pub async fn main() -> Result<(), Error> {
                 println!("message command created: {:?}", response.text().await?);
             }
         }
+        Action::GetCommands { guild_id } => match guild_id {
+            Some(g_id) => {
+                let response = get_guild_commands(&client, &g_id).await?;
+                println!("guild commands: {:#?}", response.text().await?);
+            }
+            None => {
+                let response = get_application_commands(&client).await?;
+                println!("application commands: {:#?}", response.text().await?);
+            }
+        },
+        Action::DeleteCommand {
+            command_id: id,
+            guild_id,
+        } => match guild_id {
+            Some(g_id) => todo!(),
+            None => todo!(),
+        },
         Action::GetChannel { channel_id } => {
             info!("get channel: {channel_id}");
             let response = get_get_channel(&client, &channel_id).await?;

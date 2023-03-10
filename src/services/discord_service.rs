@@ -5,7 +5,8 @@ use tracing::{info, instrument};
 
 use crate::{
     endpoint::{
-        get_channel_endpoint, get_create_message_endpoint, get_followup_endpoint,
+        get_application_commands_endpoint, get_channel_endpoint, get_create_message_endpoint,
+        get_followup_endpoint, get_guild_commands_endpoint,
         get_register_application_command_endpoint, get_register_guild_command_endpoint,
         get_start_thread_endpoint,
     },
@@ -114,6 +115,37 @@ pub async fn post_create_guild_message_command(
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
         )
         .json(&command)
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+#[instrument(skip(client), ret, err)]
+pub async fn get_application_commands(client: &reqwest::Client) -> Result<Response, Error> {
+    let resp = client
+        .get(get_application_commands_endpoint())
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+#[instrument(skip(client), ret, err)]
+pub async fn get_guild_commands(
+    client: &reqwest::Client,
+    guild_id: &str,
+) -> Result<Response, Error> {
+    let resp = client
+        .get(get_guild_commands_endpoint(guild_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
         .send()
         .await?;
 
