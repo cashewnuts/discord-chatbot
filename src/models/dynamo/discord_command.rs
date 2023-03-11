@@ -11,13 +11,19 @@ pub struct DiscordCommand {
 }
 
 impl DiscordCommand {
-    pub fn chat_command<S>(id: S, channel_id: S, interaction_token: S, now: u64) -> Self
+    pub fn chat_command<S>(
+        id: S,
+        channel_id: S,
+        interaction_token: S,
+        topic: Option<String>,
+        now: u64,
+    ) -> Self
     where
         S: Into<String>,
     {
         Self {
             id: id.into(),
-            command_type: CommandType::Chat(ChatCommand::new(channel_id, interaction_token)),
+            command_type: CommandType::Chat(ChatCommand::new(channel_id, interaction_token, topic)),
             created_at: now,
             updated_at: now,
         }
@@ -34,13 +40,19 @@ pub enum CommandType {
 pub struct ChatCommand {
     pub channel_id: String,
     pub interaction_token: String,
+    pub topic: Option<String>,
 }
 
 impl ChatCommand {
-    pub fn new<S: Into<String>>(channel_id: S, interaction_token: S) -> Self {
+    pub fn new<S: Into<String>>(
+        channel_id: S,
+        interaction_token: S,
+        topic: Option<String>,
+    ) -> Self {
         Self {
             channel_id: channel_id.into(),
             interaction_token: interaction_token.into(),
+            topic,
         }
     }
 }

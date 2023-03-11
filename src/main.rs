@@ -4,10 +4,14 @@ use std::{
     sync::Arc,
 };
 
-use discord_chatbot::models::{
-    dynamo::discord_command::DiscordCommand,
-    request::InteractionRequest,
-    response::{InteractionMessage, InteractionResponse},
+use discord_chatbot::{
+    models::{
+        channel::Channel,
+        dynamo::discord_command::DiscordCommand,
+        request::InteractionRequest,
+        response::{InteractionMessage, InteractionResponse},
+    },
+    services::discord_service::get_get_channel,
 };
 use ed25519_dalek::{PublicKey, Signature};
 use environment::DISCORD_BOT_PUBLIC_KEY;
@@ -53,15 +57,34 @@ async fn post_interactions_handler(
         2u32 => {
             let data = request.data.unwrap();
             if data.name.as_str() == "chat" {
+                let channel_id = request.channel_id.unwrap();
                 let options = data.options.unwrap();
                 let option = options.first().unwrap();
+                let channel = get_get_channel(http_client, &channel_id)
+                    .await?
+                    .json::<Channel>()
+                    .await?;
+                let topic = if channel.type_ == 0u32 {
+                    channel.topic
+                } else {
+                    if let Some(p_channel_id) = channel.parent_id {
+                        let parent_channel = get_get_channel(http_client, &p_channel_id)
+                            .await?
+                            .json::<Channel>()
+                            .await?;
+                        parent_channel.topic
+                    } else {
+                        None
+                    }
+                };
                 let res = dynamo_client
                     .put_item()
                     .table_name(env::var("DISCORD_COMMAND_TABLE")?)
                     .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
                         &request.id,
-                        &request.channel_id.unwrap(),
+                        &channel_id,
                         &request.token,
+                        topic,
                         10,
                     ))?))
                     .send()

@@ -73,6 +73,7 @@ async fn function_handler(
                             .json::<ChatCompletionResponse>()
                             .await
                             .map_err(map_err_json_event_id)?;
+                            info!("chatgpt: {res:?}");
                             let content = res.choices.first().unwrap().message.clone().content;
                             post_followup_message(
                                 &client,
@@ -112,6 +113,8 @@ async fn main() -> Result<(), Error> {
         .with_target(false)
         // disabling time is handy because CloudWatch will add the ingestion time.
         .without_time()
+        .with_file(true)
+        .with_line_number(true)
         .init();
 
     let client = Arc::new(reqwest::Client::new());

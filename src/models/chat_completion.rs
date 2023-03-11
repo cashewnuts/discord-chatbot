@@ -67,7 +67,11 @@ pub struct ChatCompletionRequest {
 
 impl From<ChatCommand> for ChatCompletionRequest {
     fn from(value: ChatCommand) -> Self {
-        let system_message = ChatCompletionMessage::system("You're concise");
+        let system_message = if let Some(t) = value.topic {
+            ChatCompletionMessage::system(t)
+        } else {
+            ChatCompletionMessage::system("You're concise")
+        };
         let user_message = ChatCompletionMessage::user("How to clear bash");
         Self {
             model: "gpt-3.5-turbo".to_string(),

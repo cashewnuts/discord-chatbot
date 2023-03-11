@@ -35,13 +35,11 @@ enum Action {
         guild_id: Option<String>,
     },
     DeleteCommand {
-        #[arg(short, long)]
         command_id: String,
         #[arg(short, long)]
         guild_id: Option<String>,
     },
     GetChannel {
-        #[arg(short, long)]
         channel_id: String,
     },
     FollowUp {
@@ -49,7 +47,6 @@ enum Action {
         token: String,
     },
     Chat {
-        #[arg(short, long)]
         text: String,
     },
 }
@@ -132,13 +129,13 @@ pub async fn main() -> Result<(), Error> {
             info!("chat: {text}");
             let response = post_chat_completions(
                 &client,
-                &json!({
+                &serde_json::from_value(json!({
                     "model": "gpt-3.5-turbo",
                     "messages": [
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": text},
                     ]
-                }),
+                }))?,
             )
             .await?
             .json::<ChatCompletionResponse>()

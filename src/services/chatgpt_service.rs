@@ -1,17 +1,18 @@
 use reqwest::Response;
-use serde::Serialize;
-use serde_json::json;
 use tracing::instrument;
 
-use crate::{endpoint::chatgpt_completions_endpoint, environment::CHATGPT_API_KEY, error::Error};
+use crate::{
+    endpoint::chatgpt_completions_endpoint, environment::CHATGPT_API_KEY, error::Error,
+    models::chat_completion::ChatCompletionRequest,
+};
 
 /**
  * https://discord.com/developers/docs/resources/channel#get-channel
  */
-#[instrument(skip(client, request), ret, err)]
-pub async fn post_chat_completions<T: Serialize + ?Sized>(
+#[instrument(skip(client), ret, err)]
+pub async fn post_chat_completions(
     client: &reqwest::Client,
-    request: &T,
+    request: &ChatCompletionRequest,
 ) -> Result<Response, Error> {
     let resp = client
         .post(chatgpt_completions_endpoint())
