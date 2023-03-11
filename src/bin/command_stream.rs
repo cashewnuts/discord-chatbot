@@ -1,5 +1,4 @@
 use std::sync::Arc;
-
 use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
 use discord_chatbot::{
     models::{
@@ -13,8 +12,8 @@ use lambda_runtime::{run, Error, LambdaEvent};
 use tokio::task::JoinSet;
 use tracing::{error, info, warn};
 
-struct Service<'a> {
-    client: &'a reqwest::Client,
+struct Service {
+    client: Arc<reqwest::Client>,
 }
 
 /// This is the main body for the function.
@@ -22,9 +21,9 @@ struct Service<'a> {
 /// There are some code example in the following URLs:
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
 /// - https://github.com/aws-samples/serverless-rust-demo/
-async fn function_handler<'a>(
+async fn function_handler(
     event: LambdaEvent<Event>,
-    service: Service<'a>,
+    service: &Service,
 ) -> Result<DynamoDbEventResponse, Error> {
     let response = DynamoDbEventResponse {
         batch_item_failures: Vec::new(),
@@ -32,11 +31,10 @@ async fn function_handler<'a>(
 
     let mut set = JoinSet::new();
 
-    let client = Arc::new(service.client.to_owned());
     // Extract some useful information from the request
     for record in event.payload.records.into_iter() {
         let record_box = Box::new(record.clone());
-        let client = client.clone();
+        let client = service.client.clone();
         match record.event_name.as_str() {
             // MODIFY is for replay usage
             "INSERT" | "MODIFY" => {
@@ -103,7 +101,7 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .init();
 
-    let client = &reqwest::Client::new();
+    let client = Arc::new(reqwest::Client::new());
 
     let svs = &Service { client };
 
