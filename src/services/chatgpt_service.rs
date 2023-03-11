@@ -2,7 +2,7 @@ use reqwest::Response;
 use serde_json::json;
 use tracing::instrument;
 
-use crate::{endpoint::chatgpt_completions_endpoint, env::CHATGPT_API_KEY, error::Error};
+use crate::{endpoint::chatgpt_completions_endpoint, environment::CHATGPT_API_KEY, error::Error};
 
 /**
  * https://discord.com/developers/docs/resources/channel#get-channel

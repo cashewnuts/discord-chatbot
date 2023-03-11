@@ -9,7 +9,7 @@ use crate::{
         get_create_message_endpoint, get_followup_endpoint, get_start_thread_endpoint,
         guild_command_item_endpoint, guild_commands_endpoint,
     },
-    env::DISCORD_BOT_TOKEN,
+    environment::DISCORD_BOT_TOKEN,
     error::Error,
     models::application_command::{ApplicationCommand, ApplicationCommandOption},
 };

@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "PascalCase")]
 pub struct DiscordCommand {
     id: String,
+    #[serde(flatten)]
     command_type: CommandType,
     created_at: u64,
     updated_at: u64,

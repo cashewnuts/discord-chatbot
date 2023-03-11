@@ -1,7 +1,7 @@
 pub mod constants;
 pub mod endpoint;
-pub mod env;
+pub mod environment;
 pub mod error;
 pub mod models;
-pub mod services;
 pub mod service;
+pub mod services;

@@ -1,21 +1,20 @@
-use std::str::{from_utf8, FromStr};
+use std::{
+    env,
+    str::{from_utf8, FromStr},
+    sync::Arc,
+};
 
-use discord_chatbot::{
-    models::{
-        request::InteractionRequest,
-        response::{InteractionMessage, InteractionResponse},
-    },
-    services::{discord_service::{post_start_thread, post_message}, chatgpt_service::post_chat_completions},
+use discord_chatbot::models::{
+    dynamo::discord_command::DiscordCommand,
+    request::InteractionRequest,
+    response::{InteractionMessage, InteractionResponse},
 };
 use ed25519_dalek::{PublicKey, Signature};
-use env::DISCORD_BOT_PUBLIC_KEY;
+use environment::DISCORD_BOT_PUBLIC_KEY;
 use lambda_http::{http::Method, run, service_fn, Body, Error, Request, RequestExt, Response};
-use serde_json::json;
 use tracing::{error, info, instrument};
 
-use crate::models::{channel::Channel, chat_completion::ChatCompletionResponse};
-
-pub mod env;
+pub mod environment;
 pub mod error;
 pub mod models;
 
@@ -24,10 +23,11 @@ fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
     Ok(Response::new(Body::from("Hello world!")))
 }
 
-#[instrument(skip(client), ret, err)]
+#[instrument(skip(http_client, dynamo_client), ret, err)]
 async fn post_interactions_handler(
-    client: &reqwest::Client,
     req: &Request,
+    http_client: &reqwest::Client,
+    dynamo_client: &aws_sdk_dynamodb::Client,
 ) -> Result<Response<Body>, Error> {
     info!("{DISCORD_BOT_PUBLIC_KEY:?}");
     let request: InteractionRequest = if let Ok(Some(req)) = req.payload() {
@@ -55,21 +55,16 @@ async fn post_interactions_handler(
             if data.name.as_str() == "chat" {
                 let options = data.options.unwrap();
                 let option = options.first().unwrap();
-                let text = option.value.clone().unwrap();
-                let response =
-                    post_start_thread(client, &request.channel_id.unwrap(), &format!("{text:<20}")).await?;
-                let channel: Channel = response.json().await?;
-                info!("post_start_thread: {:?}", channel);
-                post_message(client, &channel.id, &json!({
-                    "content": text,
-                })).await?;
-                let chat: ChatCompletionResponse = post_chat_completions(client, "You are a helpful assistant.", &text).await?.json().await?;
-                info!("total_token_usage: {:?}", chat.get_total_token_usage());
-                let chat_choice = chat.choices.first().unwrap();
-                let chat_message_content = chat_choice.message.content.clone();
-                post_message(client, &channel.id, &json!({
-                    "content": chat_message_content,
-                })).await?;
+                let res = dynamo_client
+                    .put_item()
+                    .table_name(env::var("DISCORD_COMMAND_TABLE")?)
+                    .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
+                        &request.id,
+                        &request.channel_id.unwrap().clone(),
+                        10,
+                    ))?))
+                    .send()
+                    .await?;
                 let response = InteractionResponse::new(
                     4,
                     Some(InteractionMessage {
@@ -121,7 +116,11 @@ fn validate_request(req: &Request) -> Result<(), Error> {
 /// Write your code inside it.
 /// There are some code example in the following URLs:
 /// - https://github.com/awslabs/aws-lambda-rust-runtime/tree/main/examples
-async fn function_handler(req: Request) -> Result<Response<Body>, Error> {
+async fn function_handler(
+    req: &Request,
+    http_client: &reqwest::Client,
+    dynamo_client: &aws_sdk_dynamodb::Client,
+) -> Result<Response<Body>, Error> {
     // Extract some useful information from the request
     if validate_request(&req).is_err() {
         let resp = Response::builder()
@@ -132,11 +131,12 @@ async fn function_handler(req: Request) -> Result<Response<Body>, Error> {
         return Ok(resp);
     }
 
-    let client = reqwest::Client::new();
     match (req.method(), req.uri().path()) {
         // Serve some instructions at /
         (&Method::GET, "/") => get_response(&req),
-        (&Method::POST, "/api/interactions") => post_interactions_handler(&client, &req).await,
+        (&Method::POST, "/api/interactions") => {
+            post_interactions_handler(&req, http_client, dynamo_client).await
+        }
         _ => {
             error!("{req:?}");
             let resp = Response::builder()
@@ -162,5 +162,15 @@ async fn main() -> Result<(), Error> {
         .with_line_number(true)
         .init();
 
-    run(service_fn(function_handler)).await
+    let http_client = Arc::new(reqwest::Client::new());
+    let config = aws_config::load_from_env().await;
+    let dynamo_client = Arc::new(aws_sdk_dynamodb::Client::new(&config));
+    // Define a closure here that makes use of the shared client.
+    let handler_func_closure = move |event: Request| {
+        let http_client = http_client.clone();
+        let dynamo_client = dynamo_client.clone();
+        async move { function_handler(&event, &http_client, &dynamo_client).await }
+    };
+
+    run(service_fn(handler_func_closure)).await
 }
