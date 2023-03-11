@@ -45,6 +45,8 @@ enum Action {
     },
     GetMessages {
         channel_id: String,
+        #[arg(short, long, default_value_t = 10)]
+        limit: u32,
         #[arg(short, long)]
         before: Option<String>,
     },
@@ -123,9 +125,13 @@ pub async fn main() -> Result<(), Error> {
             let response = get_get_channel(&client, &channel_id).await?;
             println!("{:?}", response.text().await?);
         }
-        Action::GetMessages { channel_id, before } => {
+        Action::GetMessages {
+            channel_id,
+            before,
+            limit,
+        } => {
             info!("get channel messages: {channel_id}");
-            let response = get_get_messages(&client, &channel_id, before, None).await?;
+            let response = get_get_messages(&client, &channel_id, before, Some(limit)).await?;
             println!("{:?}", response.text().await?);
         }
         Action::GetMessage {

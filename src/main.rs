@@ -12,7 +12,7 @@ use discord_chatbot::{
         request::InteractionRequest,
         response::InteractionResponse,
     },
-    services::discord_service::{get_get_channel, get_get_messages},
+    services::discord_service::{get_get_channel, get_get_message},
 };
 use ed25519_dalek::{PublicKey, Signature};
 use environment::DISCORD_BOT_PUBLIC_KEY;
@@ -63,6 +63,7 @@ async fn post_interactions_handler(
                     .await?
                     .json::<Channel>()
                     .await?;
+                info!("channel: {channel:?}");
                 let topic = if channel.type_ == 0u32 {
                     channel.topic
                 } else if let Some(p_channel_id) = channel.parent_id {
@@ -74,13 +75,12 @@ async fn post_interactions_handler(
                 } else {
                     None
                 };
-                let messages =
-                    get_get_messages(http_client, &channel_id, channel.last_message_id, Some(1))
+                let message =
+                    get_get_message(http_client, &channel_id, &channel.last_message_id.unwrap())
                         .await?
-                        .json::<Vec<Message>>()
+                        .json::<Message>()
                         .await?;
-                info!("messages: {messages:?}");
-                let message = messages.first().unwrap();
+                info!("message: {message:?}");
                 let content = message.content.clone().unwrap();
                 let res = dynamo_client
                     .put_item()
