@@ -6,6 +6,9 @@ pub struct InteractionMessage {
     pub content: Option<String>,
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/receiving-and-responding#responding-to-an-interaction
+ */
 #[derive(Serialize, Deserialize)]
 pub struct InteractionResponse<T> {
     #[serde(rename = "type")]

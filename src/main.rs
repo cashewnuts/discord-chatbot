@@ -60,18 +60,13 @@ async fn post_interactions_handler(
                     .table_name(env::var("DISCORD_COMMAND_TABLE")?)
                     .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
                         &request.id,
-                        &request.channel_id.unwrap().clone(),
+                        &request.channel_id.unwrap(),
+                        &request.token,
                         10,
                     ))?))
                     .send()
                     .await?;
-                let response = InteractionResponse::new(
-                    4,
-                    Some(InteractionMessage {
-                        tts: None,
-                        content: Some("Thread started! Check out blow".to_string()),
-                    }),
-                );
+                let response = InteractionResponse::new(5, Option::<String>::None);
                 Ok(Response::builder()
                     .status(200)
                     .header("content-type", "application/json")

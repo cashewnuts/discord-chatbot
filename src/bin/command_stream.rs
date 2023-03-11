@@ -1,13 +1,20 @@
-use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
-use aws_sdk_dynamodb::Client;
-use discord_chatbot::service::ServiceFn;
-use lambda_runtime::{run, Error, LambdaEvent};
-use tracing::info;
+use std::sync::Arc;
 
-const PRIMARY_KEY: &str = "Id";
+use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
+use discord_chatbot::{
+    models::{
+        dynamo::discord_command::{CommandType, DiscordCommand},
+        webhook_request::WebhookRequest,
+    },
+    service::ServiceFn,
+    services::discord_service::post_followup_message,
+};
+use lambda_runtime::{run, Error, LambdaEvent};
+use tokio::task::JoinSet;
+use tracing::{error, info, warn};
 
 struct Service<'a> {
-    client: &'a Client,
+    client: &'a reqwest::Client,
 }
 
 /// This is the main body for the function.
@@ -17,17 +24,69 @@ struct Service<'a> {
 /// - https://github.com/aws-samples/serverless-rust-demo/
 async fn function_handler<'a>(
     event: LambdaEvent<Event>,
-    service: &'a Service<'a>,
+    service: Service<'a>,
 ) -> Result<DynamoDbEventResponse, Error> {
     let response = DynamoDbEventResponse {
         batch_item_failures: Vec::new(),
     };
 
+    let mut set = JoinSet::new();
+
+    let client = Arc::new(service.client.to_owned());
     // Extract some useful information from the request
     for record in event.payload.records.into_iter() {
-        let event_id = record.event_id.clone();
-        let keys = record.change.keys.clone();
-        info!("success {}: {:?}", event_id, keys);
+        let record_box = Box::new(record.clone());
+        let client = client.clone();
+        match record.event_name.as_str() {
+            // MODIFY is for replay usage
+            "INSERT" | "MODIFY" => {
+                set.spawn(async move {
+                    let event_id = record_box.event_id.clone();
+                    info!("processing event ({event_id})");
+
+                    let map_err_event_id = |e| {
+                        error!("error occurred {e:?}");
+                        event_id.clone()
+                    };
+
+                    let new_image = record.change.new_image;
+                    let command_try: Result<DiscordCommand, _> = serde_dynamo::from_item(new_image);
+                    let command = match command_try {
+                        Ok(c) => c,
+                        Err(err) => {
+                            warn!("unsupported command: {err:?}");
+                            return Ok(());
+                        }
+                    };
+
+                    match command.clone().command_type {
+                        CommandType::Chat(chat_command) => {
+                            post_followup_message(
+                                &client,
+                                &chat_command.interaction_token,
+                                &WebhookRequest {
+                                    content: "Done".to_string(),
+                                },
+                            )
+                            .await
+                            .map_err(map_err_event_id)?;
+                        }
+                    }
+
+                    println!("command: {command:?}");
+                    info!("processed event ({event_id})");
+                    Result::<(), String>::Ok(())
+                });
+            }
+            _ => info!("Do nothing on Delete"),
+        }
+    }
+
+    while let Some(res) = set.join_next().await {
+        match res {
+            Ok(_) => info!("done"),
+            Err(_) => error!("error"),
+        }
     }
 
     Ok(response)
@@ -44,8 +103,7 @@ async fn main() -> Result<(), Error> {
         .without_time()
         .init();
 
-    let config = &aws_config::load_from_env().await;
-    let client = &Client::new(config);
+    let client = &reqwest::Client::new();
 
     let svs = &Service { client };
 
