@@ -83,7 +83,7 @@ async fn post_interactions_handler(
                         .await?;
                 info!("message: {message:?}");
                 let content = message.content.clone().unwrap();
-                let now = Utc::now().timestamp_millis().unsigned_abs();
+                let now = Utc::now().timestamp_millis();
                 let res = dynamo_client
                     .put_item()
                     .table_name(env::var("DISCORD_COMMAND_TABLE")?)
