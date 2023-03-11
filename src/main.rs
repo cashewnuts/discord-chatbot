@@ -7,11 +7,12 @@ use std::{
 use discord_chatbot::{
     models::{
         channel::Channel,
-        dynamo::discord_command::DiscordCommand,
+        dynamo::discord_command::{ChatCommandMessage, DiscordCommand},
+        message::Message,
         request::InteractionRequest,
-        response::{InteractionMessage, InteractionResponse},
+        response::InteractionResponse,
     },
-    services::discord_service::get_get_channel,
+    services::discord_service::{get_get_channel, get_get_messages},
 };
 use ed25519_dalek::{PublicKey, Signature};
 use environment::DISCORD_BOT_PUBLIC_KEY;
@@ -58,25 +59,29 @@ async fn post_interactions_handler(
             let data = request.data.unwrap();
             if data.name.as_str() == "chat" {
                 let channel_id = request.channel_id.unwrap();
-                let options = data.options.unwrap();
-                let option = options.first().unwrap();
                 let channel = get_get_channel(http_client, &channel_id)
                     .await?
                     .json::<Channel>()
                     .await?;
                 let topic = if channel.type_ == 0u32 {
                     channel.topic
+                } else if let Some(p_channel_id) = channel.parent_id {
+                    let parent_channel = get_get_channel(http_client, &p_channel_id)
+                        .await?
+                        .json::<Channel>()
+                        .await?;
+                    parent_channel.topic
                 } else {
-                    if let Some(p_channel_id) = channel.parent_id {
-                        let parent_channel = get_get_channel(http_client, &p_channel_id)
-                            .await?
-                            .json::<Channel>()
-                            .await?;
-                        parent_channel.topic
-                    } else {
-                        None
-                    }
+                    None
                 };
+                let messages =
+                    get_get_messages(http_client, &channel_id, channel.last_message_id, Some(1))
+                        .await?
+                        .json::<Vec<Message>>()
+                        .await?;
+                info!("messages: {messages:?}");
+                let message = messages.first().unwrap();
+                let content = message.content.clone().unwrap();
                 let res = dynamo_client
                     .put_item()
                     .table_name(env::var("DISCORD_COMMAND_TABLE")?)
@@ -85,6 +90,7 @@ async fn post_interactions_handler(
                         &channel_id,
                         &request.token,
                         topic,
+                        vec![ChatCommandMessage::user(content)],
                         10,
                     ))?))
                     .send()

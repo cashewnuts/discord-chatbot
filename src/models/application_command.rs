@@ -21,4 +21,5 @@ pub struct ApplicationCommandOption {
     pub description: String,
     pub required: Option<bool>,
     pub min_length: Option<u32>,
+    pub max_value: Option<u32>,
 }

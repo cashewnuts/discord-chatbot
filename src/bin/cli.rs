@@ -7,7 +7,7 @@ use discord_chatbot::{
         chatgpt_service::post_chat_completions,
         discord_service::{
             delete_application_command, delete_guild_command, get_application_commands,
-            get_get_channel, get_get_messages, get_guild_commands,
+            get_get_channel, get_get_message, get_get_messages, get_guild_commands,
             post_create_application_chat_command, post_create_application_message_command,
             post_create_guild_chat_command, post_create_guild_message_command,
             post_followup_message,
@@ -45,6 +45,12 @@ enum Action {
     },
     GetMessages {
         channel_id: String,
+        #[arg(short, long)]
+        before: Option<String>,
+    },
+    GetMessage {
+        channel_id: String,
+        message_id: String,
     },
     FollowUp {
         #[arg(short, long)]
@@ -117,9 +123,17 @@ pub async fn main() -> Result<(), Error> {
             let response = get_get_channel(&client, &channel_id).await?;
             println!("{:?}", response.text().await?);
         }
-        Action::GetMessages { channel_id } => {
+        Action::GetMessages { channel_id, before } => {
             info!("get channel messages: {channel_id}");
-            let response = get_get_messages(&client, &channel_id, None, None).await?;
+            let response = get_get_messages(&client, &channel_id, before, None).await?;
+            println!("{:?}", response.text().await?);
+        }
+        Action::GetMessage {
+            channel_id,
+            message_id,
+        } => {
+            info!("get channel message: {channel_id}:{message_id}");
+            let response = get_get_message(&client, &channel_id, &message_id).await?;
             println!("{:?}", response.text().await?);
         }
         Action::FollowUp { token } => {

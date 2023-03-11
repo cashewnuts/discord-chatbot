@@ -50,6 +50,11 @@ pub fn get_channel_messages_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages")
 }
 
+#[instrument(ret)]
+pub fn get_channel_message_item_endpoint(channel_id: &str, message_id: &str) -> String {
+    format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages/{message_id}")
+}
+
 /**
  * https://discord.com/developers/docs/interactions/receiving-and-responding#create-followup-message
  */

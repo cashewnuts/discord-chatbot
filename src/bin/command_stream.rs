@@ -1,7 +1,7 @@
 use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
 use discord_chatbot::{
     models::{
-        chat_completion::{ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse},
+        chat_completion::{ChatCompletionRequest, ChatCompletionResponse},
         dynamo::discord_command::{CommandType, DiscordCommand},
         webhook_request::WebhookRequest,
     },
@@ -64,17 +64,32 @@ async fn function_handler(
 
                     match command.clone().command_type {
                         CommandType::Chat(chat_command) => {
-                            let res = post_chat_completions(
+                            let response = post_chat_completions(
                                 &client,
                                 &ChatCompletionRequest::from(chat_command.clone()),
                             )
                             .await
-                            .map_err(map_err_event_id.clone())?
-                            .json::<ChatCompletionResponse>()
-                            .await
-                            .map_err(map_err_json_event_id)?;
-                            info!("chatgpt: {res:?}");
-                            let content = res.choices.first().unwrap().message.clone().content;
+                            .map_err(map_err_event_id)?;
+
+                            let chat_response = if response.status().is_success() {
+                                response
+                                    .json::<ChatCompletionResponse>()
+                                    .await
+                                    .map_err(map_err_json_event_id)?
+                            } else {
+                                let err_text =
+                                    response.text().await.map_err(map_err_json_event_id)?;
+                                error!("chatgpt error response: {err_text:?}");
+                                return Ok(());
+                            };
+                            info!("chatgpt: {chat_response:?}");
+                            let content = chat_response
+                                .choices
+                                .first()
+                                .unwrap()
+                                .message
+                                .clone()
+                                .content;
                             post_followup_message(
                                 &client,
                                 &chat_command.interaction_token,

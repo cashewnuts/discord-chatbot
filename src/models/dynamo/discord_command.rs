@@ -16,6 +16,7 @@ impl DiscordCommand {
         channel_id: S,
         interaction_token: S,
         topic: Option<String>,
+        messages: Vec<ChatCommandMessage>,
         now: u64,
     ) -> Self
     where
@@ -23,7 +24,12 @@ impl DiscordCommand {
     {
         Self {
             id: id.into(),
-            command_type: CommandType::Chat(ChatCommand::new(channel_id, interaction_token, topic)),
+            command_type: CommandType::Chat(ChatCommand::new(
+                channel_id,
+                interaction_token,
+                topic,
+                messages,
+            )),
             created_at: now,
             updated_at: now,
         }
@@ -37,10 +43,30 @@ pub enum CommandType {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ChatCommandMessage {
+    User { content: String },
+    Assistant { content: String },
+}
+
+impl ChatCommandMessage {
+    pub fn assistant<S: Into<String>>(content: S) -> Self {
+        Self::Assistant {
+            content: content.into(),
+        }
+    }
+    pub fn user<S: Into<String>>(content: S) -> Self {
+        Self::User {
+            content: content.into(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCommand {
     pub channel_id: String,
     pub interaction_token: String,
     pub topic: Option<String>,
+    pub messages: Vec<ChatCommandMessage>,
 }
 
 impl ChatCommand {
@@ -48,11 +74,13 @@ impl ChatCommand {
         channel_id: S,
         interaction_token: S,
         topic: Option<String>,
+        messages: Vec<ChatCommandMessage>,
     ) -> Self {
         Self {
             channel_id: channel_id.into(),
             interaction_token: interaction_token.into(),
             topic,
+            messages,
         }
     }
 }

@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::dynamo::discord_command::ChatCommand;
+use super::dynamo::discord_command::{ChatCommand, ChatCommandMessage};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionMessage {
@@ -72,10 +72,20 @@ impl From<ChatCommand> for ChatCompletionRequest {
         } else {
             ChatCompletionMessage::system("You're concise")
         };
-        let user_message = ChatCompletionMessage::user("How to clear bash");
+        let mut messages = vec![system_message];
+        for msg in value.messages.iter() {
+            match msg {
+                ChatCommandMessage::User { content } => {
+                    messages.push(ChatCompletionMessage::user(content))
+                }
+                ChatCommandMessage::Assistant { content } => {
+                    messages.push(ChatCompletionMessage::assistant(content))
+                }
+            }
+        }
         Self {
             model: "gpt-3.5-turbo".to_string(),
-            messages: vec![system_message, user_message],
+            messages,
         }
     }
 }
