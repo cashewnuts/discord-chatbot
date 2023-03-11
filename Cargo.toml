@@ -14,6 +14,11 @@ name = "cli"
 test = false
 bench = false
 
+[[bin]]
+name = "command_stream"
+test = false
+bench = false
+
 # Starting in Rust 1.62 you can use `cargo add` to add dependencies 
 # to your project.
 #
@@ -34,6 +39,10 @@ lambda_http = { version = "0.7", default-features = false, features = ["apigw_ht
 lambda_runtime = "0.7"
 serde = "1.0.154"
 serde_json = "1.0.94"
+aws-config = "0.54.1"
+aws-sdk-dynamodb = "0.24"
+aws_lambda_events = "0.7"
+serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+0_24", "aws_lambda_events+0_7"] }
 tokio = { version = "1", features = ["macros"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "json"] }

@@ -1,8 +1,10 @@
 use reqwest::Response;
-use serde_json::json;
 use tracing::instrument;
 
-use crate::{endpoint::chatgpt_completions_endpoint, env::CHATGPT_API_KEY, error::Error};
+use crate::{
+    endpoint::chatgpt_completions_endpoint, environment::CHATGPT_API_KEY, error::Error,
+    models::chat_completion::ChatCompletionRequest,
+};
 
 /**
  * https://discord.com/developers/docs/resources/channel#get-channel
@@ -10,8 +12,7 @@ use crate::{endpoint::chatgpt_completions_endpoint, env::CHATGPT_API_KEY, error:
 #[instrument(skip(client), ret, err)]
 pub async fn post_chat_completions(
     client: &reqwest::Client,
-    system_text: &str,
-    text: &str,
+    request: &ChatCompletionRequest,
 ) -> Result<Response, Error> {
     let resp = client
         .post(chatgpt_completions_endpoint())
@@ -19,13 +20,7 @@ pub async fn post_chat_completions(
             "Authorization",
             format!("Bearer {}", CHATGPT_API_KEY.unwrap()),
         )
-        .json(&json!({
-            "model": "gpt-3.5-turbo-0301",
-            "messages": [
-                { "role": "system", "content": system_text },
-                { "role": "user", "content": text }
-            ]
-        }))
+        .json(request)
         .send()
         .await?;
 

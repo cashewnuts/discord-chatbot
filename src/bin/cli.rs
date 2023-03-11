@@ -2,17 +2,19 @@ use clap::Parser;
 
 use discord_chatbot::{
     error::Error,
-    models::webhook_request::WebhookRequest,
+    models::{chat_completion::ChatCompletionResponse, webhook_request::WebhookRequest},
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
             delete_application_command, delete_guild_command, get_application_commands,
-            get_get_channel, get_guild_commands, post_create_application_chat_command,
-            post_create_application_message_command, post_create_guild_chat_command,
-            post_create_guild_message_command, post_followup_message,
+            get_get_channel, get_get_message, get_get_messages, get_guild_commands,
+            post_create_application_chat_command, post_create_application_message_command,
+            post_create_guild_chat_command, post_create_guild_message_command,
+            post_followup_message,
         },
     },
 };
+use serde_json::json;
 use tracing::info;
 
 /// Simple program to greet a person
@@ -34,21 +36,27 @@ enum Action {
         guild_id: Option<String>,
     },
     DeleteCommand {
-        #[arg(short, long)]
         command_id: String,
         #[arg(short, long)]
         guild_id: Option<String>,
     },
     GetChannel {
-        #[arg(short, long)]
         channel_id: String,
+    },
+    GetMessages {
+        channel_id: String,
+        #[arg(short, long)]
+        before: Option<String>,
+    },
+    GetMessage {
+        channel_id: String,
+        message_id: String,
     },
     FollowUp {
         #[arg(short, long)]
         token: String,
     },
     Chat {
-        #[arg(short, long)]
         text: String,
     },
 }
@@ -115,6 +123,19 @@ pub async fn main() -> Result<(), Error> {
             let response = get_get_channel(&client, &channel_id).await?;
             println!("{:?}", response.text().await?);
         }
+        Action::GetMessages { channel_id, before } => {
+            info!("get channel messages: {channel_id}");
+            let response = get_get_messages(&client, &channel_id, before, None).await?;
+            println!("{:?}", response.text().await?);
+        }
+        Action::GetMessage {
+            channel_id,
+            message_id,
+        } => {
+            info!("get channel message: {channel_id}:{message_id}");
+            let response = get_get_message(&client, &channel_id, &message_id).await?;
+            println!("{:?}", response.text().await?);
+        }
         Action::FollowUp { token } => {
             info!("follow up: {token}");
             let response = post_followup_message(
@@ -129,9 +150,20 @@ pub async fn main() -> Result<(), Error> {
         }
         Action::Chat { text } => {
             info!("chat: {text}");
-            let response =
-                post_chat_completions(&client, "You are a helpful assistant.", &text).await?;
-            println!("{:?}", response.text().await?);
+            let response = post_chat_completions(
+                &client,
+                &serde_json::from_value(json!({
+                    "model": "gpt-3.5-turbo",
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": text},
+                    ]
+                }))?,
+            )
+            .await?
+            .json::<ChatCompletionResponse>()
+            .await?;
+            println!("{:?}", response);
         }
     }
     Ok(())

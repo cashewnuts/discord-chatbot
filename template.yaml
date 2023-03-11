@@ -1,0 +1,97 @@
+# This is the SAM template that represents the architecture of your serverless application
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-template-basics.html
+
+# The AWSTemplateFormatVersion identifies the capabilities of the template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Discord ChatGPT integration bot
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+  - AWS::Serverless-2016-10-31
+
+Parameters:
+  ThrottlingBurstLimit:
+    Type: Number
+    Default: 12
+  ThrottlingRateLimit:
+    Type: Number
+    Default: 30
+
+Globals:
+  Function:
+    Environment:
+      Variables:
+        RUST_LOG: info
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+  # Each Lambda function is defined by properties:
+  # https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+  DiscordCommandTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      KeySchema:
+        - AttributeName: 'Id'
+          KeyType: 'HASH'
+      AttributeDefinitions:
+        - AttributeName: 'Id'
+          AttributeType: 'S'
+      StreamSpecification:
+        StreamViewType: NEW_IMAGE
+      BillingMode: PAY_PER_REQUEST
+
+  DiscordWebhookReceiverFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 30
+      Description: Discord webhook receiver function
+      Environment:
+        Variables:
+          DISCORD_COMMAND_TABLE: !Ref DiscordCommandTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DiscordCommandTable
+      FunctionUrlConfig:
+        AuthType: NONE
+    Metadata:
+      BuildMethod: makefile
+
+  DircordCommandStreamFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - arm64
+      MemorySize: 128
+      Timeout: 30
+      Description: Process discord command asynchronously
+      Events:
+        DiscordCommandStream:
+          Type: DynamoDB
+          Properties:
+            Stream: !GetAtt DiscordCommandTable.StreamArn
+            StartingPosition: TRIM_HORIZON
+            MaximumRetryAttempts: 1
+            BatchSize: 1
+            # When you set BatchSize to a value greater than 10, you must set MaximumBatchingWindowInSeconds to at least 1.
+            MaximumBatchingWindowInSeconds: 0
+            Enabled: true
+    Metadata:
+      BuildMethod: makefile
+
+Outputs:
+  FunctionUrl:
+    Description: 'Function URL'
+    Value: "Not working due to aws's bug. Maybe" # !GetAtt DiscordWebhookReceiverFunction.FunctionUrl

@@ -1,7 +1,7 @@
 use tracing::instrument;
 
 use crate::constants::{CHATGPT_BASE_URL, DISCORD_BASE_URL};
-use crate::env::DISCORD_APPLICATION_ID;
+use crate::environment::DISCORD_APPLICATION_ID;
 
 #[instrument(ret)]
 pub fn application_commands_endpoint() -> String {
@@ -45,12 +45,14 @@ pub fn chatgpt_completions_endpoint() -> String {
     format!("{CHATGPT_BASE_URL}/chat/completions",)
 }
 
-/**
- * https://discord.com/developers/docs/resources/channel#create-message
- */
 #[instrument(ret)]
-pub fn get_create_message_endpoint(channel_id: &str) -> String {
+pub fn get_channel_messages_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages")
+}
+
+#[instrument(ret)]
+pub fn get_channel_message_item_endpoint(channel_id: &str, message_id: &str) -> String {
+    format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages/{message_id}")
 }
 
 /**
@@ -71,4 +73,3 @@ pub fn get_followup_endpoint(interaction_token: &str) -> String {
 pub fn get_start_thread_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}/threads")
 }
-

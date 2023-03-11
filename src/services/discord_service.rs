@@ -6,10 +6,10 @@ use tracing::{info, instrument};
 use crate::{
     endpoint::{
         application_command_item_endpoint, application_commands_endpoint, channel_item_endpoint,
-        get_create_message_endpoint, get_followup_endpoint, get_start_thread_endpoint,
-        guild_command_item_endpoint, guild_commands_endpoint,
+        get_channel_message_item_endpoint, get_channel_messages_endpoint, get_followup_endpoint,
+        get_start_thread_endpoint, guild_command_item_endpoint, guild_commands_endpoint,
     },
-    env::DISCORD_BOT_TOKEN,
+    environment::DISCORD_BOT_TOKEN,
     error::Error,
     models::application_command::{ApplicationCommand, ApplicationCommandOption},
 };
@@ -19,12 +19,22 @@ pub fn generate_chat_command() -> ApplicationCommand {
         name: "chat".to_string(),
         type_: 1,
         description: Some("ChatGPT command".to_string()),
+        options: None,
+    }
+}
+
+pub fn generate_chats_command() -> ApplicationCommand {
+    ApplicationCommand {
+        name: "chats".to_string(),
+        type_: 1,
+        description: Some("ChatGPT command".to_string()),
         options: Some(vec![ApplicationCommandOption {
-            name: "text".to_string(),
-            type_: 3,
-            description: "question text".to_string(),
-            required: Some(true),
-            min_length: Some(5u32),
+            name: "read_count".to_string(),
+            type_: 4,
+            description: "Read messages count. default is 3".to_string(),
+            required: Some(false),
+            min_length: None,
+            max_value: Some(100),
         }]),
     }
 }
@@ -230,6 +240,64 @@ pub async fn get_get_channel(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel-messages
+ */
+#[instrument(skip(client), ret, err)]
+pub async fn get_get_messages(
+    client: &reqwest::Client,
+    channel_id: &str,
+    before: Option<String>,
+    limit: Option<u32>,
+) -> Result<Response, Error> {
+    let limit = limit.or_else(|| Some(10)).unwrap();
+    let query_params = if let Some(before) = before {
+        json!({
+            "before": before,
+            "limit": limit,
+        })
+    } else {
+        json!({
+            "limit": limit,
+        })
+    };
+    let resp = client
+        .get(get_channel_messages_endpoint(channel_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .query(&query_params)
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel-message
+ */
+#[instrument(skip(client), ret, err)]
+pub async fn get_get_message(
+    client: &reqwest::Client,
+    channel_id: &str,
+    message_id: &str,
+) -> Result<Response, Error> {
+    let resp = client
+        .get(get_channel_message_item_endpoint(channel_id, message_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/resources/channel#create-message
+ */
 #[instrument(skip(client, payload), ret, err)]
 pub async fn post_message<T: Serialize + ?Sized>(
     client: &reqwest::Client,
@@ -237,7 +305,7 @@ pub async fn post_message<T: Serialize + ?Sized>(
     payload: &T,
 ) -> Result<Response, Error> {
     let resp = client
-        .post(get_create_message_endpoint(channel_id))
+        .post(get_channel_messages_endpoint(channel_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
