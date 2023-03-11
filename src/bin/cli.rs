@@ -2,7 +2,7 @@ use clap::Parser;
 
 use discord_chatbot::{
     error::Error,
-    models::webhook_request::WebhookRequest,
+    models::{chat_completion::ChatCompletionResponse, webhook_request::WebhookRequest},
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
@@ -13,6 +13,7 @@ use discord_chatbot::{
         },
     },
 };
+use serde_json::json;
 use tracing::info;
 
 /// Simple program to greet a person
@@ -129,9 +130,20 @@ pub async fn main() -> Result<(), Error> {
         }
         Action::Chat { text } => {
             info!("chat: {text}");
-            let response =
-                post_chat_completions(&client, "You are a helpful assistant.", &text).await?;
-            println!("{:?}", response.text().await?);
+            let response = post_chat_completions(
+                &client,
+                &json!({
+                    "model": "gpt-3.5-turbo",
+                    "messages": [
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": text},
+                    ]
+                }),
+            )
+            .await?
+            .json::<ChatCompletionResponse>()
+            .await?;
+            println!("{:?}", response);
         }
     }
     Ok(())

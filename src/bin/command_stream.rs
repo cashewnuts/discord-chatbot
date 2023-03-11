@@ -1,14 +1,15 @@
-use std::sync::Arc;
 use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
 use discord_chatbot::{
     models::{
+        chat_completion::{ChatCompletionChoice, ChatCompletionRequest, ChatCompletionResponse},
         dynamo::discord_command::{CommandType, DiscordCommand},
         webhook_request::WebhookRequest,
     },
     service::ServiceFn,
-    services::discord_service::post_followup_message,
+    services::{chatgpt_service::post_chat_completions, discord_service::post_followup_message},
 };
 use lambda_runtime::{run, Error, LambdaEvent};
+use std::sync::Arc;
 use tokio::task::JoinSet;
 use tracing::{error, info, warn};
 
@@ -46,6 +47,10 @@ async fn function_handler(
                         error!("error occurred {e:?}");
                         event_id.clone()
                     };
+                    let map_err_json_event_id = |e| {
+                        error!("json serialize error occurred {e:?}");
+                        event_id.clone()
+                    };
 
                     let new_image = record.change.new_image;
                     let command_try: Result<DiscordCommand, _> = serde_dynamo::from_item(new_image);
@@ -59,12 +64,20 @@ async fn function_handler(
 
                     match command.clone().command_type {
                         CommandType::Chat(chat_command) => {
+                            let res = post_chat_completions(
+                                &client,
+                                &ChatCompletionRequest::from(chat_command.clone()),
+                            )
+                            .await
+                            .map_err(map_err_event_id.clone())?
+                            .json::<ChatCompletionResponse>()
+                            .await
+                            .map_err(map_err_json_event_id)?;
+                            let content = res.choices.first().unwrap().message.clone().content;
                             post_followup_message(
                                 &client,
                                 &chat_command.interaction_token,
-                                &WebhookRequest {
-                                    content: "Done".to_string(),
-                                },
+                                &WebhookRequest { content },
                             )
                             .await
                             .map_err(map_err_event_id)?;
