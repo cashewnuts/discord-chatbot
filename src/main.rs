@@ -4,6 +4,7 @@ use std::{
     sync::Arc,
 };
 
+use chrono::Utc;
 use discord_chatbot::{
     models::{
         channel::Channel,
@@ -82,6 +83,7 @@ async fn post_interactions_handler(
                         .await?;
                 info!("message: {message:?}");
                 let content = message.content.clone().unwrap();
+                let now = Utc::now().timestamp_millis().unsigned_abs();
                 let res = dynamo_client
                     .put_item()
                     .table_name(env::var("DISCORD_COMMAND_TABLE")?)
@@ -91,7 +93,7 @@ async fn post_interactions_handler(
                         &request.token,
                         topic,
                         vec![ChatCommandMessage::user(content)],
-                        10,
+                        now,
                     ))?))
                     .send()
                     .await?;
