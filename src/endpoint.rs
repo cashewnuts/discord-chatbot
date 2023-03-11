@@ -45,11 +45,8 @@ pub fn chatgpt_completions_endpoint() -> String {
     format!("{CHATGPT_BASE_URL}/chat/completions",)
 }
 
-/**
- * https://discord.com/developers/docs/resources/channel#create-message
- */
 #[instrument(ret)]
-pub fn get_create_message_endpoint(channel_id: &str) -> String {
+pub fn get_channel_messages_endpoint(channel_id: &str) -> String {
     format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages")
 }
 

@@ -6,7 +6,7 @@ use tracing::{info, instrument};
 use crate::{
     endpoint::{
         application_command_item_endpoint, application_commands_endpoint, channel_item_endpoint,
-        get_create_message_endpoint, get_followup_endpoint, get_start_thread_endpoint,
+        get_channel_messages_endpoint, get_followup_endpoint, get_start_thread_endpoint,
         guild_command_item_endpoint, guild_commands_endpoint,
     },
     environment::DISCORD_BOT_TOKEN,
@@ -230,6 +230,43 @@ pub async fn get_get_channel(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/resources/channel#get-channel-messages
+ */
+#[instrument(skip(client), ret, err)]
+pub async fn get_get_messages(
+    client: &reqwest::Client,
+    channel_id: &str,
+    before: Option<String>,
+    limit: Option<u32>,
+) -> Result<Response, Error> {
+    let limit = limit.or_else(|| Some(10)).unwrap();
+    let query_params = if let Some(before) = before {
+        json!({
+            "before": before,
+            "limit": limit,
+        })
+    } else {
+        json!({
+            "limit": limit,
+        })
+    };
+    let resp = client
+        .get(get_channel_messages_endpoint(channel_id))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .query(&query_params)
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/resources/channel#create-message
+ */
 #[instrument(skip(client, payload), ret, err)]
 pub async fn post_message<T: Serialize + ?Sized>(
     client: &reqwest::Client,
@@ -237,7 +274,7 @@ pub async fn post_message<T: Serialize + ?Sized>(
     payload: &T,
 ) -> Result<Response, Error> {
     let resp = client
-        .post(get_create_message_endpoint(channel_id))
+        .post(get_channel_messages_endpoint(channel_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),

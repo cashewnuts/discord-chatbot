@@ -7,9 +7,10 @@ use discord_chatbot::{
         chatgpt_service::post_chat_completions,
         discord_service::{
             delete_application_command, delete_guild_command, get_application_commands,
-            get_get_channel, get_guild_commands, post_create_application_chat_command,
-            post_create_application_message_command, post_create_guild_chat_command,
-            post_create_guild_message_command, post_followup_message,
+            get_get_channel, get_get_messages, get_guild_commands,
+            post_create_application_chat_command, post_create_application_message_command,
+            post_create_guild_chat_command, post_create_guild_message_command,
+            post_followup_message,
         },
     },
 };
@@ -40,6 +41,9 @@ enum Action {
         guild_id: Option<String>,
     },
     GetChannel {
+        channel_id: String,
+    },
+    GetMessages {
         channel_id: String,
     },
     FollowUp {
@@ -111,6 +115,11 @@ pub async fn main() -> Result<(), Error> {
         Action::GetChannel { channel_id } => {
             info!("get channel: {channel_id}");
             let response = get_get_channel(&client, &channel_id).await?;
+            println!("{:?}", response.text().await?);
+        }
+        Action::GetMessages { channel_id } => {
+            info!("get channel messages: {channel_id}");
+            let response = get_get_messages(&client, &channel_id, None, None).await?;
             println!("{:?}", response.text().await?);
         }
         Action::FollowUp { token } => {
