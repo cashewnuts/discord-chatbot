@@ -14,4 +14,15 @@ pub struct Message {
     pub timestamp: String,
     pub content: Option<String>,
     pub author: DiscordUser,
+    pub referenced_message: Option<Box<Message>>,
+}
+
+impl Message {
+    pub fn get_message_content(&self) -> Option<String> {
+        if let Some(referenced_message) = self.referenced_message.clone() {
+            referenced_message.content.to_owned()
+        } else {
+            self.content.clone()
+        }
+    }
 }

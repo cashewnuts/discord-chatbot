@@ -132,7 +132,7 @@ async fn post_interactions_handler(
                     let command_messages = messages
                         .iter()
                         .map(|m| {
-                            let content = m.clone().content.unwrap();
+                            let content = m.clone().get_message_content().unwrap_or("".to_string());
                             if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
                                 ChatCommandMessage::assistant(content)
                             } else {
@@ -186,7 +186,7 @@ async fn post_interactions_handler(
                     let command_messages = messages
                         .iter()
                         .map(|m| {
-                            let content = m.clone().content.unwrap();
+                            let content = m.clone().get_message_content().unwrap_or("".to_string());
                             if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
                                 ChatCommandMessage::assistant(content)
                             } else {
