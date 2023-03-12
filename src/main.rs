@@ -10,7 +10,7 @@ use discord_chatbot::{
         channel::Channel,
         dynamo::discord_command::{ChatCommandMessage, DiscordCommand},
         message::Message,
-        request::InteractionRequest,
+        request::{CommandInteractionOptionValue, InteractionRequest},
         response::InteractionResponse,
     },
     services::discord_service::{get_get_channel, get_get_message, get_get_messages},
@@ -114,10 +114,10 @@ async fn post_interactions_handler(
                     let default_limit = 3;
                     let limit_count = if let Some(options) = data.options {
                         if let Some(opt) = options.iter().find(|o| o.name == "n") {
-                            let value = opt.value.clone().unwrap();
-                            str::parse::<u32>(&value)
-                                .or::<u32>(Ok(default_limit))
-                                .unwrap()
+                            match opt.value.clone().unwrap() {
+                                CommandInteractionOptionValue::Int(i) => i.unsigned_abs(),
+                                _ => default_limit,
+                            }
                         } else {
                             default_limit
                         }
