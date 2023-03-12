@@ -29,13 +29,22 @@ pub fn generate_chats_command() -> ApplicationCommand {
         type_: 1,
         description: Some("ChatGPT command".to_string()),
         options: Some(vec![ApplicationCommandOption {
-            name: "read_count".to_string(),
+            name: "n".to_string(),
             type_: 4,
             description: "Read messages count. default is 3".to_string(),
             required: Some(false),
             min_length: None,
             max_value: Some(100),
         }]),
+    }
+}
+
+pub fn generate_chata_command() -> ApplicationCommand {
+    ApplicationCommand {
+        name: "chata".to_string(),
+        type_: 1,
+        description: Some("All messages will be ingested. Only works in a thread".to_string()),
+        options: None,
     }
 }
 
@@ -54,10 +63,8 @@ pub fn generate_message_command() -> ApplicationCommand {
 #[instrument(skip(client), ret, err)]
 pub async fn post_create_application_chat_command(
     client: &reqwest::Client,
+    command: &ApplicationCommand,
 ) -> Result<Response, Error> {
-    let command = generate_chat_command();
-    info!("{command:?}");
-
     let resp = client
         .post(application_commands_endpoint())
         .header(
@@ -101,10 +108,8 @@ pub async fn post_create_application_message_command(
 pub async fn post_create_guild_chat_command(
     client: &reqwest::Client,
     guild_id: &str,
+    command: &ApplicationCommand,
 ) -> Result<Response, Error> {
-    let command = generate_chat_command();
-    info!("{command:?}");
-
     let resp = client
         .post(guild_commands_endpoint(guild_id))
         .header(

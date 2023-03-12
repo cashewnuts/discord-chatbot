@@ -6,6 +6,15 @@ pub struct InteractionMessage {
     pub content: Option<String>,
 }
 
+impl InteractionMessage {
+    pub fn new<S: Into<String>>(content: S) -> Self {
+        Self {
+            tts: None,
+            content: Some(content.into()),
+        }
+    }
+}
+
 /**
  * https://discord.com/developers/docs/interactions/receiving-and-responding#responding-to-an-interaction
  */

@@ -6,8 +6,8 @@ pub struct DiscordCommand {
     pub id: String,
     #[serde(flatten)]
     pub command_type: CommandType,
-    pub created_at: u64,
-    pub updated_at: u64,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 impl DiscordCommand {
@@ -17,7 +17,7 @@ impl DiscordCommand {
         interaction_token: S,
         topic: Option<String>,
         messages: Vec<ChatCommandMessage>,
-        now: u64,
+        now: i64,
     ) -> Self
     where
         S: Into<String>,

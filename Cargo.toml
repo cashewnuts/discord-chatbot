@@ -46,3 +46,4 @@ serde_dynamo = { version = "4", features = ["aws-sdk-dynamodb+0_24", "aws_lambda
 tokio = { version = "1", features = ["macros"] }
 tracing = { version = "0.1", features = ["log"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["fmt", "std", "json"] }
+chrono = "0.4.23"
