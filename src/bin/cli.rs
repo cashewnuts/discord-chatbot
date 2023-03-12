@@ -6,7 +6,8 @@ use discord_chatbot::{
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
-            delete_application_command, delete_guild_command, get_application_commands,
+            delete_application_command, delete_guild_command, generate_chat_command,
+            generate_chata_command, generate_chats_command, get_application_commands,
             get_get_channel, get_get_message, get_get_messages, get_guild_commands,
             post_create_application_chat_command, post_create_application_message_command,
             post_create_guild_chat_command, post_create_guild_message_command,
@@ -82,8 +83,18 @@ pub async fn main() -> Result<(), Error> {
         Action::CreateCommands { guild_id } => {
             if let Some(guild_id) = guild_id {
                 info!("create guild command: {guild_id}");
-                let response = post_create_guild_chat_command(&client, &guild_id).await?;
+                let response =
+                    post_create_guild_chat_command(&client, &guild_id, &generate_chat_command())
+                        .await?;
                 println!("(GUILD)chat command created: {:?}", response.text().await?);
+                let response =
+                    post_create_guild_chat_command(&client, &guild_id, &generate_chats_command())
+                        .await?;
+                println!("(GUILD)chats command created: {:?}", response.text().await?);
+                let response =
+                    post_create_guild_chat_command(&client, &guild_id, &generate_chata_command())
+                        .await?;
+                println!("(GUILD)chata command created: {:?}", response.text().await?);
                 let response = post_create_guild_message_command(&client, &guild_id).await?;
                 println!(
                     "(GUILD)message command created: {:?}",
@@ -91,8 +102,17 @@ pub async fn main() -> Result<(), Error> {
                 );
             } else {
                 info!("create application command");
-                let response = post_create_application_chat_command(&client).await?;
+                let response =
+                    post_create_application_chat_command(&client, &generate_chat_command()).await?;
                 println!("chat command created: {:?}", response.text().await?);
+                let response =
+                    post_create_application_chat_command(&client, &generate_chats_command())
+                        .await?;
+                println!("chats command created: {:?}", response.text().await?);
+                let response =
+                    post_create_application_chat_command(&client, &generate_chata_command())
+                        .await?;
+                println!("chata command created: {:?}", response.text().await?);
                 let response = post_create_application_message_command(&client).await?;
                 println!("message command created: {:?}", response.text().await?);
             }
