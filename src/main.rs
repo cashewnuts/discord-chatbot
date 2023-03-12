@@ -13,12 +13,14 @@ use discord_chatbot::{
         request::InteractionRequest,
         response::InteractionResponse,
     },
-    services::discord_service::{get_get_channel, get_get_message},
+    services::discord_service::{get_get_channel, get_get_message, get_get_messages},
 };
 use ed25519_dalek::{PublicKey, Signature};
 use environment::DISCORD_BOT_PUBLIC_KEY;
 use lambda_http::{http::Method, run, service_fn, Body, Error, Request, RequestExt, Response};
 use tracing::{error, info, instrument};
+
+use crate::{environment::DISCORD_APPLICATION_ID, models::response::InteractionMessage};
 
 pub mod environment;
 pub mod error;
@@ -58,57 +60,165 @@ async fn post_interactions_handler(
         }
         2u32 => {
             let data = request.data.unwrap();
-            if data.name.as_str() == "chat" {
-                let channel_id = request.channel_id.unwrap();
-                let channel = get_get_channel(http_client, &channel_id)
+            let channel_id = request.channel_id.unwrap();
+            let now = Utc::now().timestamp_millis();
+            let channel = get_get_channel(http_client, &channel_id)
+                .await?
+                .json::<Channel>()
+                .await?;
+            info!("channel: {channel:?}");
+            let topic = if channel.type_ == 0u32 {
+                channel.topic
+            } else if let Some(p_channel_id) = channel.parent_id {
+                let parent_channel = get_get_channel(http_client, &p_channel_id)
                     .await?
                     .json::<Channel>()
                     .await?;
-                info!("channel: {channel:?}");
-                let topic = if channel.type_ == 0u32 {
-                    channel.topic
-                } else if let Some(p_channel_id) = channel.parent_id {
-                    let parent_channel = get_get_channel(http_client, &p_channel_id)
-                        .await?
-                        .json::<Channel>()
-                        .await?;
-                    parent_channel.topic
-                } else {
-                    None
-                };
-                let message =
-                    get_get_message(http_client, &channel_id, &channel.last_message_id.unwrap())
-                        .await?
-                        .json::<Message>()
-                        .await?;
-                info!("message: {message:?}");
-                let content = message.content.clone().unwrap();
-                let now = Utc::now().timestamp_millis();
-                let res = dynamo_client
-                    .put_item()
-                    .table_name(env::var("DISCORD_COMMAND_TABLE")?)
-                    .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
-                        &request.id,
-                        &channel_id,
-                        &request.token,
-                        topic,
-                        vec![ChatCommandMessage::user(content)],
-                        now,
-                    ))?))
-                    .send()
-                    .await?;
-                let response = InteractionResponse::new(5, Option::<String>::None);
-                Ok(Response::builder()
-                    .status(200)
-                    .header("content-type", "application/json")
-                    .body(Body::from(serde_json::to_string(&response)?))
-                    .unwrap())
+                parent_channel.topic
             } else {
-                Ok(Response::builder()
+                None
+            };
+            match data.name.as_str() {
+                "chat" => {
+                    let message = get_get_message(
+                        http_client,
+                        &channel_id,
+                        &channel.last_message_id.unwrap(),
+                    )
+                    .await?
+                    .json::<Message>()
+                    .await?;
+                    info!("message: {message:?}");
+                    let content = message.content.clone().unwrap();
+                    let res = dynamo_client
+                        .put_item()
+                        .table_name(env::var("DISCORD_COMMAND_TABLE")?)
+                        .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
+                            &request.id,
+                            &channel_id,
+                            &request.token,
+                            topic,
+                            vec![ChatCommandMessage::user(content)],
+                            now,
+                        ))?))
+                        .send()
+                        .await?;
+                    let response = InteractionResponse::new(5, Option::<String>::None);
+                    Ok(Response::builder()
+                        .status(200)
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&response)?))
+                        .unwrap())
+                }
+                "chats" => {
+                    let default_limit = 3;
+                    let limit_count = if let Some(options) = data.options {
+                        if let Some(opt) = options.iter().find(|o| o.name == "n") {
+                            let value = opt.value.clone().unwrap();
+                            str::parse::<u32>(&value)
+                                .or::<u32>(Ok(default_limit))
+                                .unwrap()
+                        } else {
+                            default_limit
+                        }
+                    } else {
+                        default_limit
+                    };
+                    let messages =
+                        get_get_messages(http_client, &channel_id, None, Some(limit_count))
+                            .await?
+                            .json::<Vec<Message>>()
+                            .await?;
+                    let command_messages = messages
+                        .iter()
+                        .map(|m| {
+                            let content = m.clone().content.unwrap();
+                            if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
+                                ChatCommandMessage::assistant(content)
+                            } else {
+                                ChatCommandMessage::user(content)
+                            }
+                        })
+                        .collect();
+                    let res = dynamo_client
+                        .put_item()
+                        .table_name(env::var("DISCORD_COMMAND_TABLE")?)
+                        .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
+                            &request.id,
+                            &channel_id,
+                            &request.token,
+                            topic,
+                            command_messages,
+                            now,
+                        ))?))
+                        .send()
+                        .await?;
+                    let response = InteractionResponse::new(5, Option::<String>::None);
+                    Ok(Response::builder()
+                        .status(200)
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&response)?))
+                        .unwrap())
+                }
+                "chata" => {
+                    let messages = match channel.type_ {
+                        11u32 | 12u32 => {
+                            get_get_messages(http_client, &channel_id, None, Some(100))
+                                .await?
+                                .json::<Vec<Message>>()
+                                .await?
+                        }
+                        _ => {
+                            let response = InteractionResponse::new(
+                                4,
+                                Some(InteractionMessage::new(
+                                    "Cannot use this command outside threads",
+                                )),
+                            );
+                            return Ok(Response::builder()
+                                .status(200)
+                                .header("content-type", "application/json")
+                                .body(Body::from(serde_json::to_string(&response)?))
+                                .unwrap());
+                        }
+                    };
+
+                    let command_messages = messages
+                        .iter()
+                        .map(|m| {
+                            let content = m.clone().content.unwrap();
+                            if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
+                                ChatCommandMessage::assistant(content)
+                            } else {
+                                ChatCommandMessage::user(content)
+                            }
+                        })
+                        .collect();
+                    let res = dynamo_client
+                        .put_item()
+                        .table_name(env::var("DISCORD_COMMAND_TABLE")?)
+                        .set_item(Some(serde_dynamo::to_item(DiscordCommand::chat_command(
+                            &request.id,
+                            &channel_id,
+                            &request.token,
+                            topic,
+                            command_messages,
+                            now,
+                        ))?))
+                        .send()
+                        .await?;
+                    let response = InteractionResponse::new(5, Option::<String>::None);
+                    Ok(Response::builder()
+                        .status(200)
+                        .header("content-type", "application/json")
+                        .body(Body::from(serde_json::to_string(&response)?))
+                        .unwrap())
+                }
+                _ => Ok(Response::builder()
                     .status(400)
                     .header("content-type", "application/json")
                     .body(Body::from("Unsupported commands"))
-                    .unwrap())
+                    .unwrap()),
             }
         }
         _ => Ok(Response::new(Body::from("unsupported type"))),
