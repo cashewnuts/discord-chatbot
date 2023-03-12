@@ -32,7 +32,7 @@ impl ChatCompletionMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionChoice {
     pub index: u32,
-    pub finish_reason: String,
+    pub finish_reason: Option<String>,
     pub message: ChatCompletionMessage,
 }
 
