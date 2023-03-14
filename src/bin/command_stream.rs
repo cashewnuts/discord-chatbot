@@ -80,6 +80,13 @@ async fn function_handler(
                                 let err_text =
                                     response.text().await.map_err(map_err_json_event_id)?;
                                 error!("chatgpt error response: {err_text:?}");
+                                post_followup_message(
+                                    &client,
+                                    &chat_command.interaction_token,
+                                    &WebhookRequest { content: err_text },
+                                )
+                                .await
+                                .map_err(map_err_event_id)?;
                                 return Ok(());
                             };
                             info!("chatgpt: {chat_response:?}");
