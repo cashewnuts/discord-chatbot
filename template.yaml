@@ -75,7 +75,7 @@ Resources:
       Architectures:
         - arm64
       MemorySize: 128
-      Timeout: 30
+      Timeout: 90
       Description: Process discord command asynchronously
       Events:
         DiscordCommandStream:
