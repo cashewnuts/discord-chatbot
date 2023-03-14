@@ -31,6 +31,70 @@ fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
     Ok(Response::new(Body::from("Hello world!")))
 }
 
+fn sort_messages_by_user(messages: Vec<Message>) -> Vec<Message> {
+    let mut results = Vec::new();
+
+    let mut intermediates: Vec<_> = Vec::new();
+    for msg in &messages {
+        let inter: Option<&Message> = intermediates.first();
+        if let Some(i) = inter {
+            if msg.author.id == i.author.id {
+                intermediates.insert(0, msg.to_owned());
+            } else {
+                results.extend(intermediates);
+                intermediates = vec![msg.to_owned()];
+            }
+        } else {
+            intermediates.push(msg.to_owned());
+        }
+    }
+    results.extend(intermediates);
+
+    results
+}
+
+fn convert_messsages_to_chat_command_message(messages: Vec<Message>) -> Vec<ChatCommandMessage> {
+    let mut results = Vec::new();
+
+    let mut prev = None;
+    for msg in &messages {
+        let content = msg.clone().get_message_content().unwrap_or("".to_string());
+        let mut cmd_message = if msg.author.id == DISCORD_APPLICATION_ID.unwrap() {
+            ChatCommandMessage::assistant(content)
+        } else {
+            ChatCommandMessage::user(content)
+        };
+        if let Some(p) = prev {
+            match p {
+                ChatCommandMessage::User { content } => {
+                    if let ChatCommandMessage::User {
+                        content: current_content,
+                    } = cmd_message
+                    {
+                        cmd_message =
+                            ChatCommandMessage::user(format!("{content}\n{current_content}"));
+                        results.pop();
+                    }
+                }
+                ChatCommandMessage::Assistant { content } => {
+                    if let ChatCommandMessage::Assistant {
+                        content: current_content,
+                    } = cmd_message
+                    {
+                        cmd_message =
+                            ChatCommandMessage::assistant(format!("{content}\n{current_content}"));
+                        results.pop();
+                    }
+                }
+            }
+        }
+        prev = Some(cmd_message.clone());
+        results.push(cmd_message);
+    }
+
+    results
+}
+
 #[instrument(skip(http_client, dynamo_client), ret, err)]
 async fn post_interactions_handler(
     req: &Request,
@@ -129,17 +193,8 @@ async fn post_interactions_handler(
                             .await?
                             .json::<Vec<Message>>()
                             .await?;
-                    let command_messages = messages
-                        .iter()
-                        .map(|m| {
-                            let content = m.clone().get_message_content().unwrap_or("".to_string());
-                            if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
-                                ChatCommandMessage::assistant(content)
-                            } else {
-                                ChatCommandMessage::user(content)
-                            }
-                        })
-                        .collect();
+                    let messages = sort_messages_by_user(messages);
+                    let command_messages = convert_messsages_to_chat_command_message(messages);
                     let res = dynamo_client
                         .put_item()
                         .table_name(env::var("DISCORD_COMMAND_TABLE")?)
@@ -182,18 +237,8 @@ async fn post_interactions_handler(
                                 .unwrap());
                         }
                     };
-
-                    let command_messages = messages
-                        .iter()
-                        .map(|m| {
-                            let content = m.clone().get_message_content().unwrap_or("".to_string());
-                            if m.author.id == DISCORD_APPLICATION_ID.unwrap() {
-                                ChatCommandMessage::assistant(content)
-                            } else {
-                                ChatCommandMessage::user(content)
-                            }
-                        })
-                        .collect();
+                    let messages = sort_messages_by_user(messages);
+                    let command_messages = convert_messsages_to_chat_command_message(messages);
                     let res = dynamo_client
                         .put_item()
                         .table_name(env::var("DISCORD_COMMAND_TABLE")?)
