@@ -31,28 +31,6 @@ fn get_response(_req: &Request) -> Result<Response<Body>, Error> {
     Ok(Response::new(Body::from("Hello world!")))
 }
 
-fn sort_messages_by_user(messages: Vec<Message>) -> Vec<Message> {
-    let mut results = Vec::new();
-
-    let mut intermediates: Vec<_> = Vec::new();
-    for msg in &messages {
-        let inter: Option<&Message> = intermediates.first();
-        if let Some(i) = inter {
-            if msg.author.id == i.author.id {
-                intermediates.insert(0, msg.to_owned());
-            } else {
-                results.extend(intermediates);
-                intermediates = vec![msg.to_owned()];
-            }
-        } else {
-            intermediates.push(msg.to_owned());
-        }
-    }
-    results.extend(intermediates);
-
-    results
-}
-
 fn convert_messsages_to_chat_command_message(messages: Vec<Message>) -> Vec<ChatCommandMessage> {
     let mut results = Vec::new();
 
@@ -188,12 +166,12 @@ async fn post_interactions_handler(
                     } else {
                         default_limit
                     };
-                    let messages =
+                    let mut messages =
                         get_get_messages(http_client, &channel_id, None, Some(limit_count))
                             .await?
                             .json::<Vec<Message>>()
                             .await?;
-                    let messages = sort_messages_by_user(messages);
+                    messages.reverse();
                     let command_messages = convert_messsages_to_chat_command_message(messages);
                     let res = dynamo_client
                         .put_item()
@@ -216,7 +194,7 @@ async fn post_interactions_handler(
                         .unwrap())
                 }
                 "chata" => {
-                    let messages = match channel.type_ {
+                    let mut messages = match channel.type_ {
                         11u32 | 12u32 => {
                             get_get_messages(http_client, &channel_id, None, Some(100))
                                 .await?
@@ -237,7 +215,7 @@ async fn post_interactions_handler(
                                 .unwrap());
                         }
                     };
-                    let messages = sort_messages_by_user(messages);
+                    messages.reverse();
                     let command_messages = convert_messsages_to_chat_command_message(messages);
                     let res = dynamo_client
                         .put_item()
