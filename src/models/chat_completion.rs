@@ -63,6 +63,7 @@ impl ChatCompletionResponse {
 pub struct ChatCompletionRequest {
     pub model: String,
     pub messages: Vec<ChatCompletionMessage>,
+    pub stream: Option<bool>,
 }
 
 impl From<ChatCommand> for ChatCompletionRequest {
@@ -86,6 +87,7 @@ impl From<ChatCommand> for ChatCompletionRequest {
         Self {
             model: "gpt-3.5-turbo".to_string(),
             messages,
+            stream: None,
         }
     }
 }

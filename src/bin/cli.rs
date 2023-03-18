@@ -1,5 +1,4 @@
 use clap::Parser;
-
 use discord_chatbot::{
     error::Error,
     models::{chat_completion::ChatCompletionResponse, webhook_request::WebhookRequest},
@@ -15,6 +14,7 @@ use discord_chatbot::{
         },
     },
 };
+use futures_util::StreamExt;
 use serde_json::json;
 use tracing::info;
 
@@ -61,6 +61,8 @@ enum Action {
     },
     Chat {
         text: String,
+        #[arg(short, long)]
+        stream: bool,
     },
 }
 
@@ -174,7 +176,7 @@ pub async fn main() -> Result<(), Error> {
             .await?;
             println!("{:?}", response.text().await?);
         }
-        Action::Chat { text } => {
+        Action::Chat { text, stream } => {
             info!("chat: {text}");
             let response = post_chat_completions(
                 &client,
@@ -183,13 +185,20 @@ pub async fn main() -> Result<(), Error> {
                     "messages": [
                         {"role": "system", "content": "You are a helpful assistant."},
                         {"role": "user", "content": text},
-                    ]
+                    ],
+                    "stream": stream,
                 }))?,
             )
-            .await?
-            .json::<ChatCompletionResponse>()
             .await?;
-            println!("{:?}", response);
+            if stream {
+                let mut bytes_stream = response.bytes_stream();
+                while let Some(item) = bytes_stream.next().await {
+                    println!("Chunk: {:?}", item?);
+                }
+            } else {
+                let response = response.json::<ChatCompletionResponse>().await?;
+                println!("{:?}", response);
+            }
         }
     }
     Ok(())
