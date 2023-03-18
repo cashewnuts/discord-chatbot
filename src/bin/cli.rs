@@ -1,7 +1,8 @@
 use clap::Parser;
 use discord_chatbot::{
     error::Error,
-    models::{chat_completion::ChatCompletionResponse, webhook_request::WebhookRequest},
+    models::chatgpt::chat_completion::ChatCompletionResponse,
+    models::discord::webhook_request::WebhookRequest,
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
