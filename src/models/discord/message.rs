@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::user::DiscordUser;
+use crate::models::user::DiscordUser;
 
 /**
  * https://discord.com/developers/docs/resources/channel#message-object

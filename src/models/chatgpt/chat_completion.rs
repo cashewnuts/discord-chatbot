@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::dynamo::discord_command::{ChatCommand, ChatCommandMessage};
+use crate::models::dynamo::discord_command::{ChatCommand, ChatCommandMessage};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionMessage {

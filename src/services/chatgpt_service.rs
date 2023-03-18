@@ -3,7 +3,7 @@ use tracing::instrument;
 
 use crate::{
     endpoint::chatgpt_completions_endpoint, environment::CHATGPT_API_KEY, error::Error,
-    models::chat_completion::ChatCompletionRequest,
+    models::chatgpt::chat_completion::ChatCompletionRequest,
 };
 
 /**

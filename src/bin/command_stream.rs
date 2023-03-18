@@ -1,9 +1,9 @@
 use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
 use discord_chatbot::{
     models::{
-        chat_completion::{ChatCompletionRequest, ChatCompletionResponse},
+        chatgpt::chat_completion::{ChatCompletionRequest, ChatCompletionResponse},
+        discord::webhook_request::WebhookRequest,
         dynamo::discord_command::{CommandType, DiscordCommand},
-        webhook_request::WebhookRequest,
     },
     service::ServiceFn,
     services::{chatgpt_service::post_chat_completions, discord_service::post_followup_message},

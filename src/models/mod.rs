@@ -1,9 +1,7 @@
 pub mod application_command;
-pub mod channel;
-pub mod chat_completion;
+pub mod chatgpt;
+pub mod discord;
 pub mod dynamo;
-pub mod message;
 pub mod request;
 pub mod response;
 pub mod user;
-pub mod webhook_request;

@@ -7,9 +7,8 @@ use std::{
 use chrono::Utc;
 use discord_chatbot::{
     models::{
-        channel::Channel,
+        discord::{channel::Channel, message::Message},
         dynamo::discord_command::{ChatCommandMessage, DiscordCommand},
-        message::Message,
         request::{CommandInteractionOptionValue, InteractionRequest},
         response::InteractionResponse,
     },
