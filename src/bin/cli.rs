@@ -1,15 +1,10 @@
-use std::str::from_utf8;
-
 use clap::Parser;
 use discord_chatbot::{
     error::Error,
     models::chatgpt::chat_completion::ChatCompletionResponse,
-    models::{
-        chatgpt::chat_completion::ChatCompletionChunkResponse,
-        discord::webhook_request::WebhookRequest,
-    },
+    models::discord::webhook_request::WebhookRequest,
     services::{
-        chatgpt_service::post_chat_completions,
+        chatgpt_service::{post_chat_completions, response_extract_stream},
         discord_service::{
             delete_application_command, delete_guild_command, generate_chat_command,
             generate_chata_command, generate_chats_command, get_application_commands,
@@ -20,9 +15,9 @@ use discord_chatbot::{
         },
     },
 };
-use futures_util::StreamExt;
+use futures_util::{pin_mut, StreamExt};
 use serde_json::json;
-use tracing::{error, info};
+use tracing::info;
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -197,35 +192,11 @@ pub async fn main() -> Result<(), Error> {
             )
             .await?;
             if stream {
-                let mut bytes_stream = response.bytes_stream();
-                while let Some(item) = bytes_stream.next().await {
-                    let bytes = item?;
-                    let str_bytes = from_utf8(&bytes[..])?;
-                    if str_bytes.len() < 6 {
-                        continue;
-                    }
-                    let trim_start = str_bytes.split("data: ");
-                    let mut buf = "".to_string();
-                    for spl in trim_start {
-                        if spl.len() == 0 || spl == "[DONE]\n\n" {
-                            if buf.len() > 0 {
-                                error!("chunk buffer: {buf:?}");
-                            }
-                            buf = "".to_string();
-                            continue;
-                        }
-                        buf.push_str(spl);
-                        let chunk: Result<ChatCompletionChunkResponse, _> =
-                            serde_json::from_str(&buf);
-                        if let Ok(chunk) = chunk {
-                            if let Some(choice) = chunk.choices.first() {
-                                if let Some(content) = choice.delta.clone().content {
-                                    print!("{content}");
-                                }
-                            }
-                            buf = "".to_string();
-                        }
-                    }
+                let stream = response_extract_stream(response, 30);
+                pin_mut!(stream); // needed for iteration
+                while let Some(value) = stream.next().await {
+                    let value = value?;
+                    print!("{}", value);
                 }
             } else {
                 let response = response.json::<ChatCompletionResponse>().await?;
