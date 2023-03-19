@@ -1,13 +1,17 @@
 use aws_lambda_events::event::{dynamodb::Event, streams::DynamoDbEventResponse};
 use discord_chatbot::{
     models::{
-        chat_completion::{ChatCompletionRequest, ChatCompletionResponse},
+        chatgpt::chat_completion::ChatCompletionRequest,
+        discord::{message::Message, webhook_request::WebhookRequest},
         dynamo::discord_command::{CommandType, DiscordCommand},
-        webhook_request::WebhookRequest,
     },
     service::ServiceFn,
-    services::{chatgpt_service::post_chat_completions, discord_service::post_followup_message},
+    services::{
+        chatgpt_service::{post_chat_completions, response_extract_stream},
+        discord_service::{edit_followup_message, post_followup_message},
+    },
 };
+use futures_util::{pin_mut, StreamExt};
 use lambda_runtime::{run, Error, LambdaEvent};
 use std::sync::Arc;
 use tokio::task::JoinSet;
@@ -73,9 +77,6 @@ async fn function_handler(
 
                             let chat_response = if response.status().is_success() {
                                 response
-                                    .json::<ChatCompletionResponse>()
-                                    .await
-                                    .map_err(map_err_json_event_id)?
                             } else {
                                 let err_text =
                                     response.text().await.map_err(map_err_json_event_id)?;
@@ -89,21 +90,44 @@ async fn function_handler(
                                 .map_err(map_err_event_id)?;
                                 return Ok(());
                             };
-                            info!("chatgpt: {chat_response:?}");
-                            let content = chat_response
-                                .choices
-                                .first()
-                                .unwrap()
-                                .message
-                                .clone()
-                                .content;
-                            post_followup_message(
-                                &client,
-                                &chat_command.interaction_token,
-                                &WebhookRequest { content },
-                            )
-                            .await
-                            .map_err(map_err_event_id)?;
+                            let stream = response_extract_stream(chat_response, 10);
+                            pin_mut!(stream); // needed for iteration
+                            let mut buffer = String::new();
+                            let mut message: Option<Message> = None;
+                            while let Some(value) = stream.next().await {
+                                let value = value.map_err(|err| {
+                                    error!("stream error: {err:?}");
+                                    event_id.clone()
+                                })?;
+                                buffer.push_str(&value);
+                                if let Some(msg) = message.clone() {
+                                    let message_id = msg.id;
+                                    edit_followup_message(
+                                        &client,
+                                        &message_id,
+                                        &chat_command.interaction_token,
+                                        &WebhookRequest {
+                                            content: buffer.clone(),
+                                        },
+                                    )
+                                    .await
+                                    .map_err(map_err_event_id)?;
+                                } else {
+                                    let msg = post_followup_message(
+                                        &client,
+                                        &chat_command.interaction_token,
+                                        &WebhookRequest {
+                                            content: buffer.clone(),
+                                        },
+                                    )
+                                    .await
+                                    .map_err(map_err_event_id)?
+                                    .json::<Message>()
+                                    .await
+                                    .map_err(map_err_json_event_id)?;
+                                    message = Some(msg);
+                                }
+                            }
                         }
                     }
 

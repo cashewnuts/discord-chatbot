@@ -7,7 +7,8 @@ use crate::{
     endpoint::{
         application_command_item_endpoint, application_commands_endpoint, channel_item_endpoint,
         get_channel_message_item_endpoint, get_channel_messages_endpoint, get_followup_endpoint,
-        get_start_thread_endpoint, guild_command_item_endpoint, guild_commands_endpoint,
+        get_followup_item_endpoint, get_start_thread_endpoint, guild_command_item_endpoint,
+        guild_commands_endpoint,
     },
     environment::DISCORD_BOT_TOKEN,
     error::Error,
@@ -322,6 +323,9 @@ pub async fn post_message<T: Serialize + ?Sized>(
     Ok(resp)
 }
 
+/**
+ * https://discord.com/developers/docs/interactions/receiving-and-responding#create-followup-message
+ */
 #[instrument(skip(client, payload), ret, err)]
 pub async fn post_followup_message<T: Serialize + ?Sized>(
     client: &reqwest::Client,
@@ -330,6 +334,29 @@ pub async fn post_followup_message<T: Serialize + ?Sized>(
 ) -> Result<Response, Error> {
     let resp = client
         .post(get_followup_endpoint(interaction_token))
+        .header(
+            "Authorization",
+            format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),
+        )
+        .json(payload)
+        .send()
+        .await?;
+
+    Ok(resp)
+}
+
+/**
+ * https://discord.com/developers/docs/interactions/receiving-and-responding#edit-followup-message
+ */
+#[instrument(skip(client, payload), ret, err)]
+pub async fn edit_followup_message<T: Serialize + ?Sized>(
+    client: &reqwest::Client,
+    message_id: &str,
+    interaction_token: &str,
+    payload: &T,
+) -> Result<Response, Error> {
+    let resp = client
+        .patch(get_followup_item_endpoint(interaction_token, message_id))
         .header(
             "Authorization",
             format!("Bot {}", DISCORD_BOT_TOKEN.unwrap()),

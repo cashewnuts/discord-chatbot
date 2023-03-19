@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::dynamo::discord_command::{ChatCommand, ChatCommandMessage};
+use crate::models::dynamo::discord_command::{ChatCommand, ChatCommandMessage};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatCompletionMessage {
@@ -36,6 +36,19 @@ pub struct ChatCompletionChoice {
     pub message: ChatCompletionMessage,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionChunkDelta {
+    pub role: Option<String>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionChunkChoice {
+    pub index: u32,
+    pub delta: ChatCompletionChunkDelta,
+    pub finish_reason: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatCompletionUsage {
     prompt_tokens: u32,
@@ -53,6 +66,15 @@ pub struct ChatCompletionResponse {
     pub choices: Vec<ChatCompletionChoice>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatCompletionChunkResponse {
+    pub id: String,
+    pub object: String,
+    pub created: u32,
+    pub model: String,
+    pub choices: Vec<ChatCompletionChunkChoice>,
+}
+
 impl ChatCompletionResponse {
     pub fn get_total_token_usage(&self) -> u32 {
         self.usage.total_tokens
@@ -63,6 +85,7 @@ impl ChatCompletionResponse {
 pub struct ChatCompletionRequest {
     pub model: String,
     pub messages: Vec<ChatCompletionMessage>,
+    pub stream: Option<bool>,
 }
 
 impl From<ChatCommand> for ChatCompletionRequest {
@@ -86,6 +109,7 @@ impl From<ChatCommand> for ChatCompletionRequest {
         Self {
             model: "gpt-3.5-turbo".to_string(),
             messages,
+            stream: Some(true),
         }
     }
 }
