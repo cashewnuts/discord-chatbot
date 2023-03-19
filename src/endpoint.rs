@@ -55,13 +55,18 @@ pub fn get_channel_message_item_endpoint(channel_id: &str, message_id: &str) -> 
     format!("{DISCORD_BASE_URL}/channels/{channel_id}/messages/{message_id}")
 }
 
-/**
- * https://discord.com/developers/docs/interactions/receiving-and-responding#create-followup-message
- */
 #[instrument(ret)]
 pub fn get_followup_endpoint(interaction_token: &str) -> String {
     format!(
         "{DISCORD_BASE_URL}/webhooks/{}/{interaction_token}",
+        DISCORD_APPLICATION_ID.unwrap()
+    )
+}
+
+#[instrument(ret)]
+pub fn get_followup_item_endpoint(interaction_token: &str, message_id: &str) -> String {
+    format!(
+        "{DISCORD_BASE_URL}/webhooks/{}/{interaction_token}/messages/{message_id}",
         DISCORD_APPLICATION_ID.unwrap()
     )
 }
