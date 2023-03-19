@@ -16,7 +16,7 @@ use discord_chatbot::{
         },
         dynamo::discord_command::{ChatCommandMessage, DiscordCommand},
     },
-    services::discord_service::{get_get_channel, get_get_message, get_get_messages},
+    services::discord_service::{get_get_channel, get_get_messages},
 };
 use ed25519_dalek::{PublicKey, Signature};
 use environment::DISCORD_BOT_PUBLIC_KEY;
@@ -126,14 +126,11 @@ async fn post_interactions_handler(
             };
             match data.name.as_str() {
                 "chat" => {
-                    let message = get_get_message(
-                        http_client,
-                        &channel_id,
-                        &channel.last_message_id.unwrap(),
-                    )
-                    .await?
-                    .json::<Message>()
-                    .await?;
+                    let messages = get_get_messages(http_client, &channel_id, None, Some(1))
+                        .await?
+                        .json::<Vec<Message>>()
+                        .await?;
+                    let message = messages.first().unwrap();
                     info!("message: {message:?}");
                     let content = message.content.clone().unwrap();
                     let res = dynamo_client
