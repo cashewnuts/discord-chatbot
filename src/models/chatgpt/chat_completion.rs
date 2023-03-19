@@ -36,6 +36,19 @@ pub struct ChatCompletionChoice {
     pub message: ChatCompletionMessage,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionChunkDelta {
+    pub role: Option<String>,
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionChunkChoice {
+    pub index: u32,
+    pub delta: ChatCompletionChunkDelta,
+    pub finish_reason: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChatCompletionUsage {
     prompt_tokens: u32,
@@ -51,6 +64,15 @@ pub struct ChatCompletionResponse {
     pub model: String,
     pub usage: ChatCompletionUsage,
     pub choices: Vec<ChatCompletionChoice>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatCompletionChunkResponse {
+    pub id: String,
+    pub object: String,
+    pub created: u32,
+    pub model: String,
+    pub choices: Vec<ChatCompletionChunkChoice>,
 }
 
 impl ChatCompletionResponse {

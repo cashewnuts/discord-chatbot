@@ -1,8 +1,13 @@
+use std::str::from_utf8;
+
 use clap::Parser;
 use discord_chatbot::{
     error::Error,
     models::chatgpt::chat_completion::ChatCompletionResponse,
-    models::discord::webhook_request::WebhookRequest,
+    models::{
+        chatgpt::chat_completion::ChatCompletionChunkResponse,
+        discord::webhook_request::WebhookRequest,
+    },
     services::{
         chatgpt_service::post_chat_completions,
         discord_service::{
@@ -17,7 +22,7 @@ use discord_chatbot::{
 };
 use futures_util::StreamExt;
 use serde_json::json;
-use tracing::info;
+use tracing::{error, info};
 
 /// Simple program to greet a person
 #[derive(Parser, Debug)]
@@ -194,7 +199,33 @@ pub async fn main() -> Result<(), Error> {
             if stream {
                 let mut bytes_stream = response.bytes_stream();
                 while let Some(item) = bytes_stream.next().await {
-                    println!("Chunk: {:?}", item?);
+                    let bytes = item?;
+                    let str_bytes = from_utf8(&bytes[..])?;
+                    if str_bytes.len() < 6 {
+                        continue;
+                    }
+                    let trim_start = str_bytes.split("data: ");
+                    let mut buf = "".to_string();
+                    for spl in trim_start {
+                        if spl.len() == 0 || spl == "[DONE]\n\n" {
+                            if buf.len() > 0 {
+                                error!("chunk buffer: {buf:?}");
+                            }
+                            buf = "".to_string();
+                            continue;
+                        }
+                        buf.push_str(spl);
+                        let chunk: Result<ChatCompletionChunkResponse, _> =
+                            serde_json::from_str(&buf);
+                        if let Ok(chunk) = chunk {
+                            if let Some(choice) = chunk.choices.first() {
+                                if let Some(content) = choice.delta.clone().content {
+                                    print!("{content}");
+                                }
+                            }
+                            buf = "".to_string();
+                        }
+                    }
                 }
             } else {
                 let response = response.json::<ChatCompletionResponse>().await?;
