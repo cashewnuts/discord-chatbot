@@ -90,7 +90,7 @@ async fn function_handler(
                                 .map_err(map_err_event_id)?;
                                 return Ok(());
                             };
-                            let stream = response_extract_stream(chat_response, 30);
+                            let stream = response_extract_stream(chat_response, 10);
                             pin_mut!(stream); // needed for iteration
                             let mut buffer = String::new();
                             let mut message: Option<Message> = None;
